@@ -25,5 +25,10 @@ env/
 .DS_Store
 Thumbs.db
 
-# Agent tooling
+# Agent tooling（個人設定不進版控；共用設定在 AGENTS.md / .agents/ / .claude/settings.json）
 .pi/
+.claude/settings.local.json
+CLAUDE.local.md
+AGENTS.local.md
+.opencode/
+.codex/
