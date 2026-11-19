@@ -9,6 +9,7 @@ feed_data(data: bytes)：接收並累積從 TCP 讀取到的原始位元組。
 
 parse_packets() -> list：解析緩衝區，自動處理半包/黏包，回傳解包後的 (packet_type, payload) 串列。
 
+#----------------------------------------
 
 manager.py
 
@@ -21,7 +22,7 @@ send_draw_stroke(target_peers: list, stroke_data: dict)
 send_spy_selection(target_peers: list, target_author: str)
 用途：間諜送出盲選參考圖的動作。
 
-
+#----------------------------------------
 
 P2P Infra
 當 TCP 收到來自某個節點的原始資料時，直接呼叫：
