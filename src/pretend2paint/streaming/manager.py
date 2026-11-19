@@ -1,5 +1,9 @@
 import logging
-from protocol import StreamPacketDecoder, PacketType, StreamPacket
+
+from .protocol import PacketType, StreamPacket, StreamPacketDecoder
+
+logger = logging.getLogger(__name__)
+
 
 class StreamManager:
     def __init__(self, p2p_connection_pool):
@@ -18,7 +22,7 @@ class StreamManager:
 
         decoder = self.decoders[peer_id]
         decoder.feed_data(raw_data)
-        
+
         # 解析出所有完整封包
         packets = decoder.parse_packets()
         for packet_type, payload in packets:
@@ -29,15 +33,15 @@ class StreamManager:
         根據封包類型分發給對應的業務邏輯處理器 (Core / Canvas)
         """
         if packet_type == PacketType.DRAW_STROKE:
-            logging.info(f"收到來自 {peer_id} 的畫筆軌跡資料")
+            logger.info(f"收到來自 {peer_id} 的畫筆軌跡資料")
             # TODO: 觸發 Canvas UI 渲染該筆畫
-            
+
         elif packet_type == PacketType.SPY_SELECT_REF:
-            logging.info(f"間諜 {peer_id} 選擇了參考圖: {payload.get('target_author')}")
+            logger.info(f"間諜 {peer_id} 選擇了參考圖: {payload.get('target_author')}")
             # TODO: 觸發 Core 業務邏輯，標記該張參考圖
-            
+
         elif packet_type == PacketType.ROUND_STATE_SYNC:
-            logging.info(f"同步回合狀態: {payload.get('state')}")
+            logger.info(f"同步回合狀態: {payload.get('state')}")
 
     def send_draw_stroke(self, target_peers: list, stroke_data: dict):
         """
