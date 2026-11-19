@@ -24,6 +24,7 @@ uv run pytest                 # 確認一切正常
 
 | 文件 | 內容 |
 | :--- | :--- |
+| [docs/onboarding.md](docs/onboarding.md) | **新手上路：第一次設定、用 agent 理解專案、注意事項** |
 | [docs/game-rules.md](docs/game-rules.md) | 遊戲規則與回合流程 |
 | [docs/architecture.md](docs/architecture.md) | 目錄、分層、資料流、執行緒模型 |
 | [docs/protocol.md](docs/protocol.md) | 通訊協定與封包列表 |
