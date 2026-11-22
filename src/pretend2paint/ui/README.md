@@ -10,7 +10,7 @@
 
 UI 模組負責在主執行緒顯示遊戲畫面、呈現 Core 提供的狀態，並將玩家操作轉成事件。UI 與 Core 透過 thread-safe 的 `queue.Queue` 傳遞事件；UI 不直接操作網路，也不判斷遊戲規則。
 
-目前 UI 框架尚未決定（[ADR 0006](../../../docs/decisions/0006-ui-framework.md)），因此先以框架無關的方式規劃畫面流程與資料。
+UI 框架使用 **tkinter**（Python 內建，不需額外安裝，有 `Canvas` 可畫圖）。目前尚未有程式碼，先規劃畫面流程與資料。
 
 ## 畫面總覽
 
@@ -49,7 +49,7 @@ Landing
 ### 執行緒（[ADR 0004](../../../docs/decisions/0004-threading-model.md)）
 
 - Core → UI 的事件走 `ui_queue`；UI → Core 的動作走 `net_queue`。
-- UI 在主執行緒定時輪詢 `ui_queue`；**不做網路 I/O、不做任何阻塞操作**。
+- UI 在主執行緒跑 tkinter 的 `mainloop()`，用 `root.after()` 定時輪詢 `ui_queue`；**不做網路 I/O、不做任何阻塞操作**。
 
 ### 保密規則（[ADR 0005](../../../docs/decisions/0005-secret-information.md)）
 
@@ -443,4 +443,4 @@ Round Result
 - [ ] **間諜猜答案是否有時間限制**，時間到時如何處理。
 - [ ] **提示重複傳送**：`DEAL_INFO`（成員 A）、`DRAWING_START` 與 `SPY_REFERENCE_*`（成員 B）都帶有 `hint`，是否統一由 `DEAL_INFO` 提供即可。
 - [ ] **`CANVAS_SNAPSHOT` 格式**與 `DrawingPayload` 型別（protocol 待決 #2）。
-- [ ] **UI 框架**（ADR 0006）：決定後補上各畫面的實際 API。
+- [ ] **UI 框架定案為 tkinter**：[ADR 0006](../../../docs/decisions/0006-ui-framework.md) 與 `ui/AGENTS.md` 仍寫「待定」，需由 team leader 更新；更新後再補上各畫面的實際 API。
