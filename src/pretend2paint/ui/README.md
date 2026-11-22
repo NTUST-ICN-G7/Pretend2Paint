@@ -434,15 +434,16 @@ Voting（成員 C）
 | `SPY_GUESS_START` | Core 通知進入 `SPY_GUESS` | `{"reason": "caught" \| "tie", "time_limit": int}`（`reason` 只送給間諜；其他玩家只收到 `{}`） |
 | `ROUND_RESULT` | Core 通知進入 `ROUND_END`（對應封包 `ROUND_RESULT` `0x09`，房主 → 所有人） | 見下方 |
 
-`ROUND_RESULT` 規劃格式：
+`ROUND_RESULT` 規劃格式（Streaming 已同意加入 `outcome`、`hint`、`spy_guess`、`guess_correct`、`drawings`、`violations`、`removed_players`；確切欄位名稱與值以 `docs/protocol.md` 更新後為準）：
 
 ```python
 {
     "event": "ROUND_RESULT",
     "payload": {
         "round_number": 1,
-        # spy_escaped / caught_right / caught_wrong / tie_right / tie_wrong / void
-        "outcome": "caught_wrong",
+        # 結果類型：escaped（潛伏）/ caught（被抓）/ tie（平票）/ void（作廢）
+        # 猜對猜錯看 guess_correct，UI 依兩者組合選擇 Round Result 標題
+        "outcome": "caught",
         "spy_id": "p3",
         "spy_name": "Charlie",
         "answer": "西瓜",
@@ -571,7 +572,7 @@ Round Result — 本局作廢
 - [x] **間諜如何拿到參考圖**：~~UI 自選 vs. Core 自動抽~~ → **已確認：系統自動隨機抽**，Spy Reference 畫面取消（成員 B 需整理段落）。參考圖若在審查被判違規，該局作廢，違規者記點，記點兩次強制出局。
 - [x] **投票投什麼**：→ **已確認：投畫作編號**。玩家只送畫作編號，作者對應表只存在房主（裁判）電腦，由房主換成作者後計票。待 Streaming 把 `VOTE` 從 `{"target": PlayerId}` 改成畫作編號並更新 `docs/protocol.md`。
 - [ ] **公開的時機**：C 的設計是「先公開（`REVEAL`）→ 同一畫面投票（`VOTING`）」；Core v1.2.0 改成「`REVIEW` → `VOTING`（只有一般玩家看匿名畫廊）→ `SPY_GUESS` → 結果鎖定後才 `REVEAL` 給所有人」。C 的畫面與狀態切換需依最後決定調整。
-- [ ] **`ROUND_RESULT` 欄位不足**：Streaming 目前是 `{"spy", "answer", "scores"}`；Round Result 畫面還需要 `outcome`、`hint`、`spy_guess`、`guess_correct`、每張畫作的作者與得票數、違規記點（`violations`）與出局玩家（`removed_players`）（見成員 D 的規劃格式）。需請 Streaming 加欄位。
+- [x] **`ROUND_RESULT` 欄位不足**：→ **已確認：Streaming 會在 `{"spy", "answer", "scores"}` 之外加上** `outcome`（潛伏／被抓／平票／作廢）、`hint`、`spy_guess`、`guess_correct`、`drawings`（每張畫的編號、作者、得票數）、`violations`、`removed_players`。待 Streaming 更新 `docs/protocol.md` 後，依確切欄位名稱調整成員 D 的規劃格式。
 - [x] **平票的定義**：→ **已確認**：「平票」是指**間諜的畫作與其他畫作並列最高票**，間諜可以猜答案；並列最高票但不含間諜的畫作 → 算間諜成功潛伏（+3）。
 - [ ] **作廢局要公開什麼**：參考圖違規作廢時，是否公開答案與間諜身分？（重開局會換新題目與新間諜，公開應不影響下一局，但需 Core 確認。）
 - [x] **架構：房主 vs. 自動裁判**：→ **已確認：房主的電腦當裁判**（照 ADR 0003），房主也會下場當玩家。UI 照現有設計：Lobby 標示房主，「開始遊戲」「下一回合」只有房主能按。**UI 不可在房主畫面顯示任何其他玩家看不到的秘密**（答案、間諜身分、作者對應）。Core v1.2.0 的「獨立自動裁判」需改成在房主端執行。
