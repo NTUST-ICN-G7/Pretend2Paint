@@ -20,8 +20,9 @@ UI 框架使用 **tkinter**（Python 內建，不需額外安裝，有 `Canvas` 
 | 2 | Waiting / Lobby | `LOBBY` | 成員 A |
 | 3 | Role & Prompt | `DEAL` | 成員 A |
 | 4 | Drawing | `DRAWING` | 成員 B |
-| 5 | Spy Reference | `SPY_ACTION` | 成員 B |
+| 5 | ~~Spy Reference~~（已取消：參考圖改由系統自動抽） | — | 成員 B |
 | 6 | Spy Drawing | `SPY_ACTION` | 成員 B |
+| — | Review（逐張審查，**新增**） | `REVIEW` | **待分配** |
 | 7 | Reveal | `REVEAL` | 成員 C |
 | 8 | Voting | `VOTING` | 成員 C |
 | 9 | Spy Guess | `SPY_GUESS` | 成員 D |
@@ -33,11 +34,15 @@ UI 框架使用 **tkinter**（Python 內建，不需額外安裝，有 `Canvas` 
 
 1. **發題**：一般玩家拿到答案（例：「西瓜」），間諜只拿到提示（例：「兩個字的水果」）。
 2. **畫圖**：一般玩家先各自畫圖，畫作不公開。
-3. **間諜行動**：一般玩家畫完後，間諜從一般玩家的畫作中盲選 1 張作為參考，再畫自己的圖。
-4. **公開**：所有畫作（包含間諜的）**以隨機順序、匿名方式**同時顯示在所有人的螢幕上；被間諜選為參考的那張畫作會加上標記，證明**這張圖一定是一般玩家畫的**。
-5. **投票**：所有人**投票選出自己認為是間諜畫的那張畫作**（投畫作編號，不是投玩家名字）。
-6. **間諜猜答案**：間諜的畫作若獲得**最高票，或與其他畫作平票**，間諜有一次機會猜一般玩家的答案（例如猜「西瓜」）；猜中的話，間諜方**扣的分數比較少**。
-7. **結算**：間諜的畫作沒有拿到最高票（其他畫作唯一最高票）時，間諜成功潛伏，不用猜答案。實際分數依 Core 組規則（見下方成員 D 的「計分」）。
+3. **間諜行動**：一般玩家畫完後，**系統自動從一般玩家的畫作中隨機抽 1 張**，私下給間諜當參考（間諜不用自己選），間諜再畫自己的圖。
+4. **審查**：所有畫作以隨機順序逐張給一般玩家審查，檢查畫裡有沒有寫字（例如直接寫出答案）。
+   - 若**系統給間諜的那張參考圖**被判定違規（例如上面寫了「西瓜」），**該回合作廢**，重新開一局。
+   - 違規的那名一般玩家會被**記點**；**被記兩次則強制出局**。
+   - 審查細節（每張幾秒、門檻、扣幾分）依 Core 組規則。
+5. **公開**：所有畫作（包含間諜的）**以隨機順序、匿名方式**同時顯示在所有人的螢幕上；被間諜選為參考的那張畫作會加上標記，證明**這張圖一定是一般玩家畫的**。
+6. **投票**：所有人**投票選出自己認為是間諜畫的那張畫作**（投畫作編號，不是投玩家名字）。
+7. **間諜猜答案**：間諜的畫作若獲得**最高票，或與其他畫作平票**，間諜有一次機會猜一般玩家的答案（例如猜「西瓜」）；猜中的話，間諜方**扣的分數比較少**。
+8. **結算**：間諜的畫作沒有拿到最高票（其他畫作唯一最高票）時，間諜成功潛伏，不用猜答案。實際分數依 Core 組規則（見下方成員 D 的「計分」）。
 
 ## 整體切換流程
 
@@ -48,12 +53,14 @@ Landing
   └─ 建立／加入房間成功 → Waiting / Lobby
        └─ DEAL → Role & Prompt
             └─ DRAWING → Drawing（一般玩家畫圖；間諜等待）
-                 └─ SPY_ACTION → Spy Reference（間諜盲選）→ Spy Drawing（間諜畫圖）
-                      └─ REVEAL → Reveal（隨機、匿名公開畫廊）
-                           └─ VOTING → Voting（同一畫面，啟用投票）
-                                ├─ SPY_GUESS（間諜最高票或平票）→ Spy Guess → ROUND_END
-                                └─ ROUND_END（其他畫作唯一最高票）→ Round Result
-                                     └─ 下一回合 → Role & Prompt／遊戲結束（待定）
+                 └─ SPY_ACTION → Spy Drawing（系統自動給間諜參考圖，間諜畫圖）
+                      └─ REVIEW → Review（一般玩家逐張審查）
+                           ├─ 參考圖違規 → Round Result（本局作廢）→ 重新開局
+                           └─ REVEAL → Reveal（隨機、匿名公開畫廊）
+                                └─ VOTING → Voting（同一畫面，啟用投票）
+                                     ├─ SPY_GUESS（間諜最高票或平票）→ Spy Guess → ROUND_END
+                                     └─ ROUND_END（其他畫作唯一最高票）→ Round Result
+                                          └─ 下一回合 → Role & Prompt／遊戲結束（待定）
 ```
 
 ## 共通規則
@@ -162,18 +169,21 @@ Role & Prompt — 間諜
 
 ## 畫面 4～6：Drawing、Spy Reference、Spy Drawing（成員 B）
 
+> **規則變更**：參考圖改由**系統自動隨機抽 1 張**一般玩家的畫作給間諜，間諜不用自己選。
+> 因此 **Spy Reference 畫面、`SELECT_REFERENCE`、`SPY_REFERENCE_OPTIONS` 取消**（下方以刪除線標示），
+> 間諜在 `SPY_ACTION` 直接進入 Spy Drawing。請成員 B 確認後再整理本段。
+
 | 畫面 | 遊戲階段 | 顯示內容 |
 | :--- | :--- | :--- |
 | Drawing | `DRAWING` | 題目答案、剩餘時間、空白畫布、繪圖工具列（顏色、粗細、橡皮擦、清空）、送出按鈕；送出後顯示等待狀態（間諜此階段等待） |
-| Spy Reference | `SPY_ACTION` | 間諜提示字、可盲選的匿名畫作選項（不顯示作者與答案）、確認選擇按鈕（一般玩家此階段等待） |
+| ~~Spy Reference~~ | ~~`SPY_ACTION`~~ | ~~間諜提示字、可盲選的匿名畫作選項（不顯示作者與答案）、確認選擇按鈕（一般玩家此階段等待）~~（已取消） |
 | Spy Drawing | `SPY_ACTION` | 間諜提示字、選中的參考畫作（唯讀、不顯示原作者）、剩餘時間、空白畫布、繪圖工具列、送出按鈕 |
 
 ```text
 Role & Prompt（成員 A）
   └─ Core 回報進入 DRAWING → Drawing（一般玩家畫圖；間諜等待）
-       └─ Core 回報進入 SPY_ACTION → Spy Reference（間諜盲選參考圖；一般玩家等待）
-            └─ Core 回報參考圖資料 → Spy Drawing（間諜看著參考圖畫圖）
-                 └─ Core 回報進入 REVEAL → Reveal（成員 C）
+       └─ Core 回報進入 SPY_ACTION，並送來系統自動抽的參考圖 → Spy Drawing（間諜看著參考圖畫圖；一般玩家等待）
+            └─ Core 回報進入 REVIEW → Review（逐張審查，負責人待分配）
 ```
 
 ### UI → Core
@@ -181,19 +191,19 @@ Role & Prompt（成員 A）
 | 事件 | 使用時機 | Payload |
 | :--- | :--- | :--- |
 | `SUBMIT_DRAWING` | 一般玩家或間諜按下送出畫作 | `{"drawing_data": DrawingPayload}` |
-| `SELECT_REFERENCE` | 間諜選擇 1 張匿名畫作並按下確認 | `{"reference_id": str}` |
+| ~~`SELECT_REFERENCE`~~ | ~~間諜選擇 1 張匿名畫作並按下確認~~（已取消） | ~~`{"reference_id": str}`~~ |
 
 ### Core → UI
 
 | 事件 | 使用時機 | Payload |
 | :--- | :--- | :--- |
 | `DRAWING_START` | Core 通知進入 `DRAWING` 階段 | 一般玩家：`{"answer": str, "time_limit": int}`；間諜：`{"hint": str, "waiting": bool}` |
-| `SPY_REFERENCE_OPTIONS` | Core 通知間諜進入 `SPY_ACTION` 盲選參考圖 | `{"hint": str, "candidate_ids": list[str]}` |
-| `SPY_REFERENCE_RECEIVED` | Core 回傳間諜選中的參考畫作 | `{"hint": str, "reference_id": str, "reference_drawing": DrawingPayload, "time_limit": int}` |
+| ~~`SPY_REFERENCE_OPTIONS`~~ | ~~Core 通知間諜進入 `SPY_ACTION` 盲選參考圖~~（已取消） | ~~`{"hint": str, "candidate_ids": list[str]}`~~ |
+| `SPY_REFERENCE_RECEIVED` | Core 送來系統自動抽的參考畫作（對應封包 `SPY_REFERENCE` `0x06`，單播給間諜） | `{"hint": str, "reference_id": str, "reference_drawing": DrawingPayload, "time_limit": int}` |
 
 保密規則：
 
-- 間諜畫面只能收到 `hint` 與盲選後的 `reference_drawing`，不可顯示真實答案，也不可顯示參考圖原作者。
+- 間諜畫面只能收到 `hint` 與系統抽的 `reference_drawing`，不可顯示真實答案，也不可顯示參考圖原作者。
 - 進入 `REVEAL` 之前，玩家畫作僅由 Core 送給房主，不可廣播給其他玩家。
 
 ### 共用畫布操作介面
@@ -216,7 +226,7 @@ Drawing — 一般玩家
 
     送出後狀態：已送出，等待其他玩家……
 
-Spy Reference — 間諜
+~~Spy Reference — 間諜~~（已取消）
 
     身分：間諜　　提示：兩個字的水果
     請盲選一張畫作作為參考（不顯示作者）：
@@ -255,7 +265,7 @@ Spy Drawing — 間諜
 UI **只看 `ROUND_STATE_SYNC` 的 `state`**，不自行推斷：
 
 ```text
-Spy Drawing（成員 B）
+Review（逐張審查，參考圖沒有違規）
   └─ ROUND_STATE_SYNC {"state": "reveal"}  → 狀態 1：公開畫廊，投票控制停用
        └─ ROUND_STATE_SYNC {"state": "voting"} → 狀態 2：同一畫面，啟用投票
             └─ ROUND_STATE_SYNC {"state": "spy_guess"} 或 {"state": "round_end"}
@@ -338,6 +348,10 @@ Reveal & Voting — 狀態 2：投票（`VOTING`，同一畫面）
 | Round Result | `ROUND_END` | 本回合結果、間諜是誰、正確答案與間諜的提示、間諜猜的答案與對錯（若有猜）、每張畫作的作者與得票數、每位玩家本回合得分與總分；下一回合／離開按鈕 |
 
 ```text
+Review（逐張審查）
+  └─ 參考圖違規 → Core 回報進入 ROUND_END（本局作廢）→ Round Result（作廢版）
+       └─ Core 重新開局 → DEAL → Role & Prompt（成員 A）
+
 Voting（成員 C）
   ├─ Core 回報進入 SPY_GUESS（間諜最高票或平票）→ Spy Guess
   │    └─ Core 回報進入 ROUND_END → Round Result
@@ -365,10 +379,19 @@ Voting（成員 C）
 | 間諜**唯一最高票**，且猜錯答案（或逾時） | 「間諜被抓到了！」 |
 | 間諜與其他畫作**平票**（或沒人投票），且猜對答案 | 「平票！間諜猜中答案」 |
 | 間諜與其他畫作**平票**（或沒人投票），且猜錯答案（或逾時） | 「平票！間諜沒猜中」 |
+| 系統給間諜的**參考圖在審查被判違規** | 「本局作廢！參考圖違規，重新開局」 |
 
 - 答案、間諜身分、**每張畫作的作者**都是**到這個畫面才公開**（對應 `ROUND_RESULT`，房主廣播）。
 - 公開時沿用 Reveal 畫面的畫作編號，讓玩家對得起來「#3 原來是 Charlie 畫的」。
 - 「下一回合」按鈕只有房主可以按；其他玩家顯示「等待房主開始下一回合……」。
+
+#### 本局作廢（參考圖違規）
+
+- 只有**系統給間諜的那張參考圖**被判違規時才作廢；其他畫作違規不會作廢，但作者照樣記點。
+- 作廢時跳過投票與猜答案，**所有人的正常分數為 0**，只有違規處罰照算；作廢的局**不算在回合數內**。
+- 畫面顯示：作廢原因、被記點的玩家與目前記點次數（例如「Bob 違規 1 次」）、處罰分數。
+- 被記點**兩次**的玩家會**強制出局**；結算畫面需顯示「Bob 已被移出本場遊戲」。若出局後剩不到 4 人，遊戲結束、返回大廳。
+- 作廢時是否公開答案與間諜身分，待 Core 確認（見待確認事項）。
 
 ### 計分
 
@@ -384,7 +407,11 @@ Voting（成員 C）
 | 平票或無票、猜對 | +1 | `5+3*(N-4)` |
 | 平票或無票、猜錯或逾時 | 0 | `5+3*(N-4)` |
 
+| 參考圖違規作廢 | 0 | 0 |
+
 也就是說，間諜被抓時「猜對」比「猜錯」少損失 4 分，符合「猜中的話間諜方扣的分數比較少」。
+
+違規處罰另外加減（Core v1.2.0 暫定）：畫作被判違規第一次 **-15**，第二次**強制出局**；審查時連續亂按違規也會扣分。
 
 ### UI → Core
 
@@ -410,7 +437,7 @@ Voting（成員 C）
     "event": "ROUND_RESULT",
     "payload": {
         "round_number": 1,
-        # spy_escaped / caught_right / caught_wrong / tie_right / tie_wrong
+        # spy_escaped / caught_right / caught_wrong / tie_right / tie_wrong / void
         "outcome": "caught_wrong",
         "spy_id": "p3",
         "spy_name": "Charlie",
@@ -428,7 +455,29 @@ Voting（成員 C）
             {"player_id": "p1", "name": "Alice", "delta": 8, "total": 8},
             {"player_id": "p3", "name": "Charlie", "delta": -3, "total": -3},
         ],
-        "is_last_round": False,  # 回合數待定
+        # 本回合被判違規的作者與累計記點次數；沒有則為空
+        "violations": [],
+        "removed_players": [],  # 記點兩次被強制出局的玩家
+        "is_last_round": False,  # Core 提案預設 5 個完成回合
+    },
+}
+```
+
+作廢時（`outcome` 為 `"void"`）的規劃格式：
+
+```python
+{
+    "event": "ROUND_RESULT",
+    "payload": {
+        "round_number": 1,  # 作廢不算回合，重開後仍是第 1 回合
+        "outcome": "void",
+        "violations": [
+            {"player_id": "p2", "name": "Bob", "strikes": 1, "penalty": -15},
+        ],
+        "removed_players": [],  # strikes 達 2 次的玩家
+        "scores": [
+            {"player_id": "p2", "name": "Bob", "delta": -15, "total": -15},
+        ],
     },
 }
 ```
@@ -465,7 +514,7 @@ Round Result
 
     畫作    作者       得票
     #1      Alice       0
-    #2      Bob         0   （被間諜選為參考）
+    #2      Bob         0   （系統給間諜的參考圖）
     #3      Charlie     2   ← 間諜
     #4      Dave        1
 
@@ -477,6 +526,24 @@ Round Result
 
     房主看到：[下一回合]  [離開房間]
     其他玩家：等待房主開始下一回合……  [離開房間]
+
+Round Result — 本局作廢
+
+    本局作廢！
+
+    原因：系統給間諜的參考圖在審查中被判定違規（畫裡有寫字）
+    本局不計分、不算回合數，即將重新開局
+
+    違規記點：
+    Bob　　第 1 次（-15 分）　　※ 記點兩次將強制出局
+
+    玩家       本回合    總分
+    Alice       +0        8
+    Bob        -15      -15
+    Charlie     +0       -3
+    Dave        +0        0
+
+    [繼續]（重新開局）  [離開房間]
 
 ---
 
@@ -493,14 +560,15 @@ Round Result
 - [ ] **分數與回合數**（Core v1.2.0）：分數表見成員 D 的「計分」，為暫定值；預設 **5 個完成回合**（作廢回合不算）；最終同分並列名次。
 - [ ] **間諜猜答案時限**（Core v1.2.0）：預設 15 秒，逾時視為猜錯。
 - [ ] **`CANVAS_SNAPSHOT` 格式**（Streaming）：`{"image": str}`，`image` 為 base64 PNG（暫定）、上限 4 MiB；公開時房主可加 `"index"`、`"marked"`、`"author"`。→ 投票階段**不可帶 `author`**，需請 Streaming 註明。
-- [ ] **逐張審查階段 `REVIEW`**（Core v1.2.0）：投票前，畫作以隨機順序**逐張**給一般玩家審查是否有寫字作弊，每張 5 秒，預設「沒違規」；4～5 人局每人可按 1 次違規，6～7 人局 2 次。→ **UI 目前沒有這個畫面，需決定由誰負責。**
+- [ ] **逐張審查階段 `REVIEW`**（Core v1.2.0）：投票前，畫作以隨機順序**逐張**給一般玩家審查是否有寫字作弊，每張 5 秒，預設「沒違規」；4～5 人局每人可按 1 次違規，6～7 人局 2 次。→ **已確認要有審查階段**；UI 需新增 Review 畫面，**需決定由誰負責**。
 
 ### 與其他組衝突，需要討論
 
-- [ ] **間諜如何拿到參考圖**：UI 組規則與 B 的 Spy Reference 畫面是「間諜**自己盲選**一張」；Core v1.2.0 改成「系統**自動隨機抽**一張」，間諜不用點選。若採 Core 版本，Spy Reference 畫面可以拿掉。
+- [x] **間諜如何拿到參考圖**：~~UI 自選 vs. Core 自動抽~~ → **已確認：系統自動隨機抽**，Spy Reference 畫面取消（成員 B 需整理段落）。參考圖若在審查被判違規，該局作廢，違規者記點，記點兩次強制出局。
 - [ ] **投票投什麼**：UI 與 Core 都是投**畫作編號**；Streaming 的 `VOTE` 目前是 `{"target": PlayerId}`（投玩家）。需請 Streaming 改成畫作編號。
 - [ ] **公開的時機**：C 的設計是「先公開（`REVEAL`）→ 同一畫面投票（`VOTING`）」；Core v1.2.0 改成「`REVIEW` → `VOTING`（只有一般玩家看匿名畫廊）→ `SPY_GUESS` → 結果鎖定後才 `REVEAL` 給所有人」。C 的畫面與狀態切換需依最後決定調整。
-- [ ] **`ROUND_RESULT` 欄位不足**：Streaming 目前是 `{"spy", "answer", "scores"}`；Round Result 畫面還需要 `outcome`、`hint`、`spy_guess`、`guess_correct`、每張畫作的作者與得票數（見成員 D 的規劃格式）。需請 Streaming 加欄位。
+- [ ] **`ROUND_RESULT` 欄位不足**：Streaming 目前是 `{"spy", "answer", "scores"}`；Round Result 畫面還需要 `outcome`、`hint`、`spy_guess`、`guess_correct`、每張畫作的作者與得票數、違規記點（`violations`）與出局玩家（`removed_players`）（見成員 D 的規劃格式）。需請 Streaming 加欄位。
+- [ ] **作廢局要公開什麼**：參考圖違規作廢時，是否公開答案與間諜身分？（重開局會換新題目與新間諜，公開應不影響下一局，但需 Core 確認。）
 - [ ] **架構：房主 vs. 自動裁判**：Core v1.2.0 假設有獨立的自動裁判程序、房主也是一般玩家，與 ADR 0003（房主為權威）衝突；Core 自己也註明需組長確認。會影響 Lobby 畫面「房主」相關按鈕（開始遊戲、下一回合）。
 
 ### 其他組沒有答案，需要提出
