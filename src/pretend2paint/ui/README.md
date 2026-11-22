@@ -351,7 +351,8 @@ Voting（成員 C）
 - 要不要進入這個畫面、猜對還是猜錯，都由 **Core 判斷**；UI 不計票、不比對答案，也不在此畫面顯示對錯，結果在 Round Result 公布。
 - 「自己是不是間諜」與「提示」沿用 `DEAL_INFO`（成員 A）收到的資料，UI 本地保留，不需要重新傳送。
 - 其他玩家的畫面**不可出現提示、答案，也不可透露哪張畫是間諜的**（作者對應在 `ROUND_RESULT` 才公開）。
-- 逾時未送出視為猜錯（依 Core 組提案；時間長度由 Core 設定）。
+- 逾時未送出視為猜錯；Core 組提案預設時限 **15 秒**（由 Core 設定，UI 只顯示倒數）。
+- Core 提案：被判違規的畫作在猜答案前**不顯示給間諜**。
 
 ### Round Result
 
@@ -481,13 +482,31 @@ Round Result
 
 ## 待確認事項
 
-以下問題需要和 team leader／Core／Streaming 組確認，確認後更新本文件：
+> 以下對照其他組**尚未合併**的分支（2026-11-22）：
+> Core 提案 `feature/core-part-b-v120-proposal-20261122`（`core/part_b_docs/`）、
+> Streaming `feature/streaming-update`（`docs/protocol.md`）。
+> 這些分支合併前都不算定案。
 
-- [ ] **遊戲規則同步**：本文件的「遊戲規則（UI 組版本）」與 `docs/game-rules.md` 不同（畫作匿名、投畫作而非投玩家、平票也能猜答案）。Core 組提案 v1.2.0 與此大致一致，合併後需更新 `docs/game-rules.md`。
-- [ ] **Core 提案的「逐張審查」階段**：Core v1.2.0 在投票前多了一般玩家逐張審查畫作（`Phase.REVIEW`）與違規處罰，目前 UI 沒有對應畫面，需決定由誰負責。
-- [ ] **投票資格**：Core v1.2.0 規定只有一般玩家能投、不能投自己或被標記的畫作、間諜沒有有效票；UI 的 Voting 畫面需依此停用對應選項。
-- [ ] **UI ↔ Core 事件格式要統一**：成員 A、B、D 以 queue 事件（如 `CREATE_ROOM`、`SUBMIT_DRAWING`）描述，成員 C 以網路封包（如 `VOTE`、`ROUND_STATE_SYNC`）描述；UI 不直接碰封包，建議統一改成 queue 事件，再註明對應的封包。
-- [ ] **分數與回合數**：分數目前是 Core 的暫定值；遊戲共幾回合、最後如何決定總冠軍。
-- [ ] **提示重複傳送**：`DEAL_INFO`（成員 A）、`DRAWING_START` 與 `SPY_REFERENCE_*`（成員 B）都帶有 `hint`，是否統一由 `DEAL_INFO` 提供即可。
-- [ ] **`CANVAS_SNAPSHOT` 格式**與 `DrawingPayload` 型別（protocol 待決 #2），需支援匿名編號與參考標記。
+### 其他組已有答案（待合併後確認）
+
+- [ ] **投票資格**（Core v1.2.0）：只有一般玩家能投；不能投自己或被標記的畫作；間諜沒有有效票；沒投視為棄權。→ C 的 Voting 畫面需依此停用對應選項，間諜看到的投票區要另外設計。
+- [ ] **分數與回合數**（Core v1.2.0）：分數表見成員 D 的「計分」，為暫定值；預設 **5 個完成回合**（作廢回合不算）；最終同分並列名次。
+- [ ] **間諜猜答案時限**（Core v1.2.0）：預設 15 秒，逾時視為猜錯。
+- [ ] **`CANVAS_SNAPSHOT` 格式**（Streaming）：`{"image": str}`，`image` 為 base64 PNG（暫定）、上限 4 MiB；公開時房主可加 `"index"`、`"marked"`、`"author"`。→ 投票階段**不可帶 `author`**，需請 Streaming 註明。
+- [ ] **逐張審查階段 `REVIEW`**（Core v1.2.0）：投票前，畫作以隨機順序**逐張**給一般玩家審查是否有寫字作弊，每張 5 秒，預設「沒違規」；4～5 人局每人可按 1 次違規，6～7 人局 2 次。→ **UI 目前沒有這個畫面，需決定由誰負責。**
+
+### 與其他組衝突，需要討論
+
+- [ ] **間諜如何拿到參考圖**：UI 組規則與 B 的 Spy Reference 畫面是「間諜**自己盲選**一張」；Core v1.2.0 改成「系統**自動隨機抽**一張」，間諜不用點選。若採 Core 版本，Spy Reference 畫面可以拿掉。
+- [ ] **投票投什麼**：UI 與 Core 都是投**畫作編號**；Streaming 的 `VOTE` 目前是 `{"target": PlayerId}`（投玩家）。需請 Streaming 改成畫作編號。
+- [ ] **公開的時機**：C 的設計是「先公開（`REVEAL`）→ 同一畫面投票（`VOTING`）」；Core v1.2.0 改成「`REVIEW` → `VOTING`（只有一般玩家看匿名畫廊）→ `SPY_GUESS` → 結果鎖定後才 `REVEAL` 給所有人」。C 的畫面與狀態切換需依最後決定調整。
+- [ ] **`ROUND_RESULT` 欄位不足**：Streaming 目前是 `{"spy", "answer", "scores"}`；Round Result 畫面還需要 `outcome`、`hint`、`spy_guess`、`guess_correct`、每張畫作的作者與得票數（見成員 D 的規劃格式）。需請 Streaming 加欄位。
+- [ ] **架構：房主 vs. 自動裁判**：Core v1.2.0 假設有獨立的自動裁判程序、房主也是一般玩家，與 ADR 0003（房主為權威）衝突；Core 自己也註明需組長確認。會影響 Lobby 畫面「房主」相關按鈕（開始遊戲、下一回合）。
+
+### 其他組沒有答案，需要提出
+
+- [ ] **UI 怎麼知道自己是不是間諜**：Streaming 的 `DEAL_WORD` 只有 `{"text": str}`，沒有角色欄位（Streaming 待決 #3 也在問）。成員 A 的 `DEAL_INFO` 需要 `role`，需請 Core 決定由誰提供。
+- [ ] **提示重複傳送**：`DEAL_INFO`（成員 A）、`DRAWING_START` 與 `SPY_REFERENCE_*`（成員 B）都帶有 `hint`，建議統一由 `DEAL_INFO` 提供即可（UI 組內部決定）。
+- [ ] **UI ↔ Core 事件格式要統一**：成員 A、B、D 以 queue 事件（如 `CREATE_ROOM`、`SUBMIT_DRAWING`）描述，成員 C 以網路封包（如 `VOTE`、`ROUND_STATE_SYNC`）描述；UI 不直接碰封包，建議統一改成 queue 事件，再註明對應的封包（UI 組內部決定）。
+- [ ] **遊戲規則同步**：本文件「遊戲規則（UI 組版本）」與 `docs/game-rules.md` 不同；待 Core 提案定案後，需更新 `docs/game-rules.md`。
 - [ ] **UI 框架定案為 tkinter**：[ADR 0006](../../../docs/decisions/0006-ui-framework.md) 與 `ui/AGENTS.md` 仍寫「待定」，需由 team leader 更新；更新後再補上各畫面的實際 API。
