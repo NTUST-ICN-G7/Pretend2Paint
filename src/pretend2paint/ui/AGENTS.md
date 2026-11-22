@@ -10,7 +10,8 @@
 - 畫布：筆畫輸入、顯示畫作。
 
 ## 規則
-- **UI 框架尚未決定**（`docs/decisions/0006-ui-framework.md`）。在決定之前**不要自行選定框架或 `uv add` 任何 GUI 套件**；可以先做與框架無關的部分（畫面流程、資料結構）。
+- **UI 框架使用 tkinter**（`docs/decisions/0006-ui-framework.md`）。tkinter 是 Python 內建，**不要 `uv add` 任何 GUI 套件**；需要其他套件先經 team leader 同意。
+- 在主執行緒跑 `mainloop()`，用 `root.after()` 定時輪詢 `ui_queue`。
 - UI 跑在主執行緒；與網路 / 遊戲邏輯只透過 `queue.Queue` 交換事件（`docs/decisions/0004-threading-model.md`）。**不要在 UI 執行緒做網路 I/O 或任何會阻塞的事**。
 - **不做遊戲規則判斷**：UI 只顯示 core 給的狀態、把使用者動作交給 core。
 - 可以 import `core`、`common`；不要直接 import `streaming` / `p2p`。

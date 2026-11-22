@@ -90,4 +90,4 @@ uv run pytest                 # 測試
 - [ ] **全體**：11/22 前完成各模組 `README.md` 的 API 說明
 - [ ] **Streaming**：補齊封包類型並處理 [protocol.md](docs/protocol.md) 的待決問題
 - [ ] **Core**：提案一般玩家計分、平票、房主斷線處理
-- [ ] **UI**：評估 UI 框架（[ADR 0006](docs/decisions/0006-ui-framework.md)）
+- [x] **UI**：評估 UI 框架 → 使用 tkinter（[ADR 0006](docs/decisions/0006-ui-framework.md)）

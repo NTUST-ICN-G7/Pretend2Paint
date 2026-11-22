@@ -13,4 +13,4 @@
 | [0003](0003-host-authority.md) | 由房主作為權威節點 | 通過 |
 | [0004](0004-threading-model.md) | 執行緒模型 | 通過 |
 | [0005](0005-secret-information.md) | 機密資訊只能單播 | 通過 |
-| [0006](0006-ui-framework.md) | UI 框架 | 待定 |
+| [0006](0006-ui-framework.md) | UI 框架：tkinter | 通過 |
