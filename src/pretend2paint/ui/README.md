@@ -379,15 +379,15 @@ Voting（成員 C）
         "spy_name": "Charlie",
         "answer": "西瓜",
         "hint": "兩個字的水果",
-        "accused_id": "p3",        # 最高票的玩家；平票規則待定
-        "spy_guess": "哈密瓜",      # 間諜沒被票出時為 None
-        "guess_correct": False,    # 間諜沒被票出時為 None
-        "outcome": "spy_caught",   # spy_escaped / spy_guessed_right / spy_caught
+        "accused_id": "p3",  # 最高票的玩家；平票規則待定
+        "spy_guess": "哈密瓜",  # 間諜沒被票出時為 None
+        "guess_correct": False,  # 間諜沒被票出時為 None
+        "outcome": "spy_caught",  # spy_escaped / spy_guessed_right / spy_caught
         "scores": [
             {"player_id": "p1", "name": "Alice", "delta": 0, "total": 2},
             {"player_id": "p3", "name": "Charlie", "delta": -1, "total": 0},
         ],
-        "is_last_round": False,    # 回合數待定
+        "is_last_round": False,  # 回合數待定
     },
 }
 ```
