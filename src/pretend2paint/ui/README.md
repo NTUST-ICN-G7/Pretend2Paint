@@ -280,7 +280,7 @@ UI → Core
 
 | 封包 | Type | 方向 | 傳送方式 | Payload |
 | :--- | :--- | :--- | :--- | :--- |
-| `VOTE` | `0x07` | 玩家 → 房主 | → 房主（單播） | `{"drawing_index": int}`（投畫作編號，由房主對應到作者；欄位未定） |
+| `VOTE` | `0x07` | 玩家 → 房主 | → 房主（單播） | `{"drawing_index": int}`（**已確認投畫作編號**，由房主對應到作者；欄位名稱以 Streaming 更新後的 `protocol.md` 為準） |
 
 送出時機：狀態 2 中玩家選好畫作並按下送出。送出後鎖定，避免重複投票。
 
@@ -569,7 +569,7 @@ Round Result — 本局作廢
 ### 與其他組衝突，需要討論
 
 - [x] **間諜如何拿到參考圖**：~~UI 自選 vs. Core 自動抽~~ → **已確認：系統自動隨機抽**，Spy Reference 畫面取消（成員 B 需整理段落）。參考圖若在審查被判違規，該局作廢，違規者記點，記點兩次強制出局。
-- [ ] **投票投什麼**：UI 與 Core 都是投**畫作編號**；Streaming 的 `VOTE` 目前是 `{"target": PlayerId}`（投玩家）。需請 Streaming 改成畫作編號。
+- [x] **投票投什麼**：→ **已確認：投畫作編號**。玩家只送畫作編號，作者對應表只存在房主（裁判）電腦，由房主換成作者後計票。待 Streaming 把 `VOTE` 從 `{"target": PlayerId}` 改成畫作編號並更新 `docs/protocol.md`。
 - [ ] **公開的時機**：C 的設計是「先公開（`REVEAL`）→ 同一畫面投票（`VOTING`）」；Core v1.2.0 改成「`REVIEW` → `VOTING`（只有一般玩家看匿名畫廊）→ `SPY_GUESS` → 結果鎖定後才 `REVEAL` 給所有人」。C 的畫面與狀態切換需依最後決定調整。
 - [ ] **`ROUND_RESULT` 欄位不足**：Streaming 目前是 `{"spy", "answer", "scores"}`；Round Result 畫面還需要 `outcome`、`hint`、`spy_guess`、`guess_correct`、每張畫作的作者與得票數、違規記點（`violations`）與出局玩家（`removed_players`）（見成員 D 的規劃格式）。需請 Streaming 加欄位。
 - [x] **平票的定義**：→ **已確認**：「平票」是指**間諜的畫作與其他畫作並列最高票**，間諜可以猜答案；並列最高票但不含間諜的畫作 → 算間諜成功潛伏（+3）。
