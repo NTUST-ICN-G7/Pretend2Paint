@@ -573,7 +573,7 @@ Round Result — 本局作廢
 
 ### 其他組沒有答案，需要提出
 
-- [ ] **UI 怎麼知道自己是不是間諜**：Streaming 的 `DEAL_WORD` 只有 `{"text": str}`，沒有角色欄位（Streaming 待決 #3 也在問）。成員 A 的 `DEAL_INFO` 需要 `role`，需請 Core 決定由誰提供。
+- [x] **UI 怎麼知道自己是不是間諜**：→ **已確認：`DEAL_WORD`（單播）加一個 `role` 欄位**，例如 `{"text": "兩個字的水果", "role": "spy"}`。只送給本人，不違反保密規則。對應成員 A 的 `DEAL_INFO` 的 `role`（`civilian` / `spy`）。待 Streaming 更新 `docs/protocol.md`。
 - [ ] **提示重複傳送**：`DEAL_INFO`（成員 A）、`DRAWING_START` 與 `SPY_REFERENCE_*`（成員 B）都帶有 `hint`，建議統一由 `DEAL_INFO` 提供即可（UI 組內部決定）。
 - [ ] **UI ↔ Core 事件格式要統一**：成員 A、B、D 以 queue 事件（如 `CREATE_ROOM`、`SUBMIT_DRAWING`）描述，成員 C 以網路封包（如 `VOTE`、`ROUND_STATE_SYNC`）描述；UI 不直接碰封包，建議統一改成 queue 事件，再註明對應的封包（UI 組內部決定）。
 - [ ] **遊戲規則同步**：本文件「遊戲規則（UI 組版本）」與 `docs/game-rules.md` 不同；待 Core 提案定案後，需更新 `docs/game-rules.md`。
