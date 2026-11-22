@@ -1,0 +1,22 @@
+# 安裝：uv run pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: agent-workspace
+        name: agent workspace check
+        entry: uv run python scripts/agent_workspace.py check
+        language: system
+        pass_filenames: false
+        files: ^(.*AGENTS\.md|.*CLAUDE\.md|\.agents/.*|\.claude/skills/.*)$
+      - id: lint-imports
+        name: import-linter (layered architecture)
+        entry: uv run lint-imports
+        language: system
+        pass_filenames: false
+        types: [python]

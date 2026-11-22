@@ -1,0 +1,64 @@
+[project]
+name = "pretend2paint"
+version = "0.1.0"
+description = "NTUST ICN G7 final project: P2P spy-drawing game (誰是臥底・畫圖版)"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+pretend2paint = "pretend2paint.__main__:main"
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.17",
+    "pre-commit>=4.7",
+    "pytest>=9.2",
+    "ruff>=0.17.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "SIM", # simplify
+]
+ignore = [
+    "E501", # line length is handled by the formatter
+]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+
+# ---------------------------------------------------------------- import-linter
+# 分層規則：上層可以 import 下層，下層不可 import 上層。
+# 詳見 docs/architecture.md
+[tool.importlinter]
+root_package = "pretend2paint"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture: ui > core > streaming > p2p > common"
+type = "layers"
+layers = [
+    "pretend2paint.ui",
+    "pretend2paint.core",
+    "pretend2paint.streaming",
+    "pretend2paint.p2p",
+    "pretend2paint.common",
+]
