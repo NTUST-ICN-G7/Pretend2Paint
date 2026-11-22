@@ -25,6 +25,9 @@ HANDSHAKE_TIMEOUT: Final = 3.0
 READ_CHUNK_SIZE: Final = 64 * 1024
 """每次從 socket 讀取的最大 bytes 數。"""
 
+MAX_WRITE_BUFFER: Final = 32 * 1024 * 1024
+"""每條連線尚未送出的資料上限（bytes）。超過代表對方太久沒讀，直接斷線保護記憶體。"""
+
 # ---------------------------------------------------------------- Handshake
 HANDSHAKE_MAGIC: Final = b"P2PH"
 """Handshake frame 的開頭，用來辨識不是本程式的連線。"""

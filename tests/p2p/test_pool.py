@@ -7,6 +7,12 @@ from collections.abc import Callable
 import pytest
 
 from pretend2paint.p2p import ConnectionPool, HandshakeError, PeerNotConnectedError
+from pretend2paint.p2p.messages import (
+    HANDSHAKE_HEADER_SIZE,
+    Hello,
+    encode_hello,
+    parse_hello_header,
+)
 
 LOCALHOST = "127.0.0.1"
 
@@ -237,5 +243,64 @@ def test_start_twice_and_connect_before_start() -> None:
             await a.stop()
             await a.stop()  # 可重複呼叫
         assert not a.is_running
+
+    asyncio.run(scenario())
+
+
+def test_drain_large_payload() -> None:
+    async def scenario() -> None:
+        a, b = make_pool("a"), make_pool("b")
+        rb = Recorder(b)
+        await a.start()
+        await b.start()
+        try:
+            await a.connect(LOCALHOST, b.listen_port)
+            payload = bytes(range(256)) * (4 * 1024 * 4)  # 4 MiB
+            a.send("b", payload)
+            await asyncio.wait_for(a.drain("b"), timeout=5)
+            await asyncio.wait_for(a.drain(), timeout=5)
+            await wait_until(lambda: len(rb.data.get("a", b"")) == len(payload))
+            assert bytes(rb.data["a"]) == payload
+            with pytest.raises(PeerNotConnectedError):
+                await a.drain("zzz")
+        finally:
+            await a.stop()
+            await b.stop()
+
+    asyncio.run(scenario())
+
+
+def test_write_buffer_overflow_disconnects_slow_peer() -> None:
+    """對方完成 handshake 後就不再讀資料：超過上限要斷線並觸發 peer_left。"""
+
+    async def scenario() -> None:
+        stalled = asyncio.Event()
+
+        async def slow_peer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            header = await reader.readexactly(HANDSHAKE_HEADER_SIZE)
+            await reader.readexactly(parse_hello_header(header))
+            writer.write(encode_hello(Hello("z", "default", 0)))
+            await stalled.wait()  # 之後完全不讀
+            writer.close()
+
+        server = await asyncio.start_server(slow_peer, LOCALHOST, 0)
+        port = server.sockets[0].getsockname()[1]
+        a = make_pool("a", max_write_buffer=256 * 1024)
+        ra = Recorder(a)
+        await a.start()
+        try:
+            assert await a.connect(LOCALHOST, port) == "z"
+            chunk = b"x" * (1024 * 1024)
+            for _ in range(256):  # 最多 256 MiB，遠超過 kernel buffer
+                if "z" not in a.peers:
+                    break
+                a.send("z", chunk)
+                await asyncio.sleep(0)
+            await wait_until(lambda: ra.left == ["z"])
+            assert a.peers == frozenset()
+        finally:
+            stalled.set()
+            await a.stop()
+            server.close()
 
     asyncio.run(scenario())
