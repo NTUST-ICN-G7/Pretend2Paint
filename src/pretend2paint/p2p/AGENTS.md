@@ -12,9 +12,13 @@
 - **只處理 raw bytes**，不管封包格式與遊戲規則。
 
 ## 對上層的介面（streaming 需要）
-- 送出：`broadcast(packet: bytes, targets: list[PlayerId] | None)`——`targets` 為 `None` / 空 list 時發給所有人，否則只發給指定節點。
+- 送出（`ConnectionPool`，簽名需符合 streaming 的 `ConnectionPool` Protocol）：
+  - `send(peer_id: PlayerId, data: bytes)`：單播給一個節點。
+  - `send_many(peer_ids: Iterable[PlayerId], data: bytes)`：送給多個指定節點；**空清單丟 `ValueError`，不可當成「全部」**。
+  - `broadcast(data: bytes)`：送給所有已連線節點，不可用於機密資訊。
   - **必須支援只發給指定節點**（單播），機密資訊靠它，見 `docs/decisions/0005-secret-information.md`。
-- 接收：讓上層**註冊 callback**，例如 `on_data(peer_id, raw_bytes)`、`on_peer_joined(peer_id)`、`on_peer_left(peer_id)`。
+- 接收：讓上層**註冊 callback**：`add_data_handler(handler(peer_id, raw_bytes))`、`add_peer_joined_handler(handler(peer_id))`、`add_peer_left_handler(handler(peer_id))`。
+- 完整 API 以同目錄的 `README.md` 為準。
   - **不可 `import pretend2paint.streaming`** 或任何上層模組（分層規則）。
 
 ## 規則
