@@ -53,7 +53,7 @@ await pool.start()
 
 ## API
 
-### `ConnectionPool(peer_id=None, *, room="default", host="0.0.0.0", port=0, discovery=True, discovery_port=50505, discovery_targets=None, discovery_interval=1.0)`
+### `ConnectionPool(peer_id=None, *, room="default", host="0.0.0.0", port=0, discovery=True, discovery_port=50505, discovery_targets=None, discovery_interval=1.0, max_write_buffer=32 MiB)`
 
 一個 P2P 節點：UDP discovery + TCP 連線池。每個程式建立**一個**。
 
@@ -67,6 +67,7 @@ await pool.start()
 | `discovery_port` | `int` | UDP discovery port（所有節點要一樣） |
 | `discovery_targets` | `Sequence[tuple[str, int]] \| None` | announcement 送往的位址；預設 `255.255.255.255:discovery_port`。主要給測試用 |
 | `discovery_interval` | `float` | 廣播間隔（秒） |
+| `max_write_buffer` | `int` | 每條連線尚未送出的資料上限（bytes）。超過代表對方太久沒讀，會**主動斷線**並觸發 `peer_left` |
 
 #### 屬性
 
@@ -100,8 +101,9 @@ await pool.start()
 #### `send(peer_id: PlayerId, data: bytes) -> None`
 - 用途：**單播**，只送給一個 peer。答案、提示、間諜身分、`REVEAL` 前的畫作都必須用這個
   （[ADR 0005](../../../docs/decisions/0005-secret-information.md)）。
-- 執行緒：asyncio 執行緒，同步呼叫、不會阻塞（寫入 socket buffer 後立即返回）。
+- 執行緒：asyncio 執行緒，同步呼叫、不會阻塞（放進寫入緩衝區後立即返回，不等對方收到）。
 - 例外 / 錯誤：`TypeError`：`data` 不是 bytes-like；`PeerNotConnectedError`：該 peer 不在線。
+- 注意：緩衝區超過 `max_write_buffer` 時會斷開該連線（之後收到 `peer_left`），不會丟例外。
 
 #### `send_many(peer_ids: Iterable[PlayerId], data: bytes) -> None`
 - 用途：送給多個指定 peer（重複的 id 只送一次）。
@@ -113,6 +115,12 @@ await pool.start()
 - 用途：送給所有已連線的 peer（不含自己）。**不可用於機密資訊。**
 - 執行緒：同 `send`。
 - 例外 / 錯誤：`TypeError`：`data` 不是 bytes-like。沒有任何 peer 時不做事。
+
+#### `async drain(peer_id: PlayerId | None = None) -> None`
+- 用途：等待寫入緩衝消化（資料交給作業系統送出）。`peer_id=None` 表示等所有 peer。
+- 何時呼叫：連續送大量資料（例如畫作快照）之後 `await pool.drain()`，避免緩衝區一直成長。小訊息不用呼叫。
+- 執行緒：asyncio 執行緒，`await`。
+- 例外 / 錯誤：`PeerNotConnectedError`：指定的 peer 不在線。等待中連線斷掉不會丟例外（會另外收到 `peer_left`）。
 
 ### 例外
 
@@ -151,6 +159,35 @@ await pool.start()
 
 以上格式只在 p2p 內部使用，與 [protocol.md](../../../docs/protocol.md) 的 streaming 封包無關。
 
+## 實機測試工具
+
+在多台電腦（同一個區網 / Wi-Fi）各開一個：
+
+```bash
+uv run python -m pretend2paint.p2p            # 預設開啟 discovery
+uv run python -m pretend2paint.p2p --help     # 所有參數
+```
+
+| 輸入 | 動作 |
+| :--- | :--- |
+| `文字` | 廣播給所有 peer |
+| `/to <peer_id 開頭> <文字>` | 只送給一個 peer |
+| `/connect <IP> <port>` | 手動連線（discovery 被擋時） |
+| `/peers` | 列出已連線的 peer |
+| `/big <MiB>` | 送一筆大資料給所有人並量測速度 |
+| `/quit` | 離開 |
+
+測試清單：
+
+1. 兩台以上啟動後，幾秒內彼此出現 `* joined`（discovery 正常）。
+2. 沒有出現：用畫面上印的 IP 與 port 打 `/connect`。可以連上 → 網路擋了 UDP broadcast；連不上 → 防火牆或 AP 隔離（client isolation）。
+3. `/to` 只有指定的那台收到；一般文字所有人都收到。
+4. `/big 20` 對方收到 `<20,971,520 bytes>`。
+5. 一台 `/quit` 或直接關掉視窗，其他台出現 `* left`。
+
+> Windows 第一次執行會跳出防火牆詢問，請允許 Python 使用**私人網路**；學校 Wi-Fi 如果被認定成公用網路，也要允許公用網路。
+> 這個工具的訊息以換行分隔，只用來測 p2p，與 streaming 的封包格式無關。
+
 ## 與其他模組的約定
 
 **提供給 `streaming`**：
@@ -170,7 +207,8 @@ await pool.start()
 
 ## 尚未完成
 
-- [ ] 寫入的背壓（backpressure）：目前 `send` 直接寫入 buffer，不等 `drain()`；畫作很大時可能需要
+- [x] 寫入的背壓：`drain()` 與 `max_write_buffer`
 - [ ] 斷線自動重連（目前靠 discovery 再次公告後重新連上，會得到新的 `joined`）
-- [ ] Discovery 是否要帶玩家暱稱，讓大廳在加入前就能顯示名字（待 core / ui 確認）
-- [ ] 實機多台電腦的區網測試（學校 Wi-Fi 可能擋 UDP broadcast，必要時用 `connect()` 手動連）
+- [ ] Heartbeat：對方當機或網路突然中斷時目前可能很久才收到 `peer_left`（待 #8 決定需要的偵測時間）
+- [ ] Discovery 是否帶房間資訊 / 暱稱（待 #7）
+- [ ] 實機多台電腦、跨作業系統（Windows / macOS）的區網測試：用上面的實機測試工具
