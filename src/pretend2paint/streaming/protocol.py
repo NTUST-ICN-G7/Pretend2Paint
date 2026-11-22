@@ -3,6 +3,9 @@
 import json
 import logging
 import struct
+from enum import IntEnum
+
+from pretend2paint.common.types import Phase
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +14,11 @@ MAX_PAYLOAD_SIZE = 4 * 1024 * 1024
 """payload 長度上限（bytes）。超過的 header 一律視為壞資料。"""
 
 
-class PacketType:
-    """封包類型。已發布的編號不可重新分配（見 docs/protocol.md）。"""
+class PacketType(IntEnum):
+    """封包類型。已發布的編號不可重新分配（見 docs/protocol.md）。
+
+    是 ``IntEnum``，所以 log 與除錯時看得到名稱，也可以直接當整數比較或放進 header。
+    """
 
     DRAW_STROKE = 0x01
     SPY_SELECT_REF = 0x02
@@ -24,19 +30,17 @@ class PacketType:
     SPY_GUESS = 0x08
     ROUND_RESULT = 0x09
 
-    ALL = frozenset(
-        {
-            DRAW_STROKE,
-            SPY_SELECT_REF,
-            ROUND_STATE_SYNC,
-            CANVAS_SNAPSHOT,
-            DEAL_WORD,
-            SPY_REFERENCE,
-            VOTE,
-            SPY_GUESS,
-            ROUND_RESULT,
-        }
-    )
+
+PACKET_TYPES = frozenset(PacketType)
+"""所有已定義的封包類型。"""
+
+
+def packet_name(packet_type: int) -> str:
+    """給 log 用：已知類型回傳名稱，未知類型回傳十六進位。"""
+    try:
+        return PacketType(packet_type).name
+    except ValueError:
+        return f"0x{packet_type:02x}"
 
 
 BROADCAST_TYPES = frozenset({PacketType.ROUND_STATE_SYNC, PacketType.ROUND_RESULT})
@@ -56,6 +60,21 @@ REQUIRED_FIELDS: dict[int, tuple[str, ...]] = {
 """各封包 payload 必備的欄位；收到缺欄位的封包會被丟棄，不會交給上層。"""
 
 
+def payload_error(packet_type: int, payload: dict) -> str | None:
+    """檢查 payload 是否合法；合法回傳 ``None``，否則回傳原因。送出與接收兩端都會呼叫。"""
+    missing = [k for k in REQUIRED_FIELDS.get(packet_type, ()) if k not in payload]
+    if missing:
+        return f"missing fields {missing}"
+
+    if packet_type == PacketType.ROUND_STATE_SYNC:
+        try:
+            Phase(payload["state"])
+        except ValueError, TypeError:
+            return f"unknown phase {payload['state']!r}"
+
+    return None
+
+
 class StreamPacket:
     MAGIC = b"\x49\x43"  # "IC" 代表 ICN-G7
 
@@ -66,7 +85,7 @@ class StreamPacket:
         :raises ValueError: 未知的封包類型，或 payload 超過 ``MAX_PAYLOAD_SIZE``
         :raises TypeError: payload 不是 dict，或內容無法轉成 JSON
         """
-        if packet_type not in PacketType.ALL:
+        if packet_type not in PACKET_TYPES:
             raise ValueError(f"unknown packet type: {packet_type!r}")
         if not isinstance(payload_dict, dict):
             raise TypeError("payload must be a dict")
@@ -93,9 +112,9 @@ class StreamPacketDecoder:
     def feed_data(self, data: bytes) -> None:
         self.buffer.extend(data)
 
-    def parse_packets(self) -> list[tuple[int, dict]]:
+    def parse_packets(self) -> list[tuple[PacketType, dict]]:
         """解出 buffer 裡所有完整且合法的封包，回傳 ``(packet_type, payload)`` 串列。"""
-        packets: list[tuple[int, dict]] = []
+        packets: list[tuple[PacketType, dict]] = []
 
         while self._sync() and len(self.buffer) >= HEADER_SIZE:
             packet_type = self.buffer[2]
@@ -113,13 +132,13 @@ class StreamPacketDecoder:
             payload_bytes = bytes(self.buffer[HEADER_SIZE:total_size])
             del self.buffer[:total_size]
 
-            if packet_type not in PacketType.ALL:
+            if packet_type not in PACKET_TYPES:
                 logger.warning("Unknown packet type 0x%02x; dropped.", packet_type)
                 continue
 
             payload = self._decode_payload(payload_bytes)
             if payload is not None:
-                packets.append((packet_type, payload))
+                packets.append((PacketType(packet_type), payload))
 
         return packets
 

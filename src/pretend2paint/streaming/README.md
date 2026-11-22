@@ -16,11 +16,17 @@ streaming 負責封包格式（7-byte header + JSON）、處理 TCP 黏包／半
 from pretend2paint.common.types import Phase
 from pretend2paint.streaming import PacketType, StreamManager
 
-manager = StreamManager(pool)  # pool 由 p2p 提供，需有 send() 與 broadcast()
+manager = StreamManager(pool)  # pool 由 p2p 提供（ConnectionPool）
+
+# 接線（由 __main__.py 負責）：
+pool.add_data_handler(manager.handle_incoming_data)
+pool.add_peer_left_handler(manager.remove_peer)
+
 
 # core：註冊收到封包時的處理（在 StreamManager 建好之後、開始收資料之前）
 def on_vote(peer_id: str, payload: dict) -> None:
     print(peer_id, "投給", payload["target"])
+
 
 manager.register_handler(PacketType.VOTE, on_vote)
 
@@ -87,11 +93,11 @@ manager.send_vote([host_id], "peer_003")
 
 | 方法 | 說明 |
 | :--- | :--- |
-| `broadcast_round_state(state: Phase \| str)` | 房主 → 所有人：同步回合階段 |
+| `broadcast_round_state(state: Phase \| str)` | 房主 → 所有人：同步回合階段。`state` 不是合法的 `Phase` 時丟 `ValueError` |
 | `broadcast_round_result(spy: PlayerId, answer: str, scores: dict[PlayerId, int])` | 房主 → 所有人：公布間諜、答案、得分 |
 
 ### `PacketType`
-封包類型常數（`DRAW_STROKE`、`SPY_SELECT_REF`、`ROUND_STATE_SYNC`、`CANVAS_SNAPSHOT`、`DEAL_WORD`、`SPY_REFERENCE`、`VOTE`、`SPY_GUESS`、`ROUND_RESULT`），給 `register_handler` 使用。數值與 payload 欄位見 `docs/protocol.md`。
+封包類型（`IntEnum`，log 與除錯時看得到名稱）（`DRAW_STROKE`、`SPY_SELECT_REF`、`ROUND_STATE_SYNC`、`CANVAS_SNAPSHOT`、`DEAL_WORD`、`SPY_REFERENCE`、`VOTE`、`SPY_GUESS`、`ROUND_RESULT`），給 `register_handler` 使用。數值與 payload 欄位見 `docs/protocol.md`。
 
 ### `StreamPacket` / `StreamPacketDecoder`
 底層編解碼，一般情況下**不需要直接使用**，用 `StreamManager` 即可。
@@ -101,22 +107,25 @@ manager.send_vote([host_id], "peer_003")
 
 ## 與其他模組的約定
 
-**需要 p2p 提供**（待 P2P Infra 確認）：
+**需要 p2p 提供**（p2p 連線池的介面見 [`p2p/README.md`](../p2p/README.md)，streaming 只用到其中兩個）：
 
 ```python
 class ConnectionPool(Protocol):
-    def send(self, peer_id: PlayerId, data: bytes) -> None: ...   # 送給指定 peer
-    def broadcast(self, data: bytes) -> None: ...                 # 送給房間所有 peer
+    def send_many(
+        self, peer_ids: Iterable[PlayerId], data: bytes
+    ) -> None: ...  # 空清單丟 ValueError
+    def broadcast(self, data: bytes) -> None: ...  # 送給房間所有 peer
 ```
 
-- p2p 收到 bytes 後呼叫 `handle_incoming_data(peer_id, raw_bytes)`；peer 斷線時呼叫 `remove_peer(peer_id)`。
+- 單播方法內部使用 `send_many`；廣播使用 `broadcast`。
+- 接線由 `__main__.py` 負責：`pool.add_data_handler(manager.handle_incoming_data)`、`pool.add_peer_left_handler(manager.remove_peer)`。
 
 **提供給 core / canvas：**
 - core 註冊 handler 接收封包，用送出方法發封包，並負責決定「誰可以收」。
 - 封包大小上限為 4 MiB；圖片請先壓縮再送。
 
 ## 尚未完成
-- [ ] p2p 的 `send` / `broadcast` 介面待 P2P Infra 確認。
 - [ ] `DRAW_STROKE` 在畫圖階段要不要使用（Canvas / Core 決定）。
 - [ ] `CANVAS_SNAPSHOT` 的圖片格式與大小待 Canvas 確認（目前暫定 base64 PNG）。
+- [ ] 房主自己也是玩家：`send_*` 不能送給自己，`broadcast_*` 也不會送給自己（p2p 連線清單不含自己），需要本機直送機制，在 issue #7 討論。
 - [ ] `DEAL_WORD` 沒有帶角色欄位，UI 如何得知自己是間諜待 Core 決定。

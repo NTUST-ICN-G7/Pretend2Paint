@@ -12,10 +12,12 @@ from pretend2paint.common.types import Phase, PlayerId
 
 from .protocol import (
     BROADCAST_TYPES,
-    REQUIRED_FIELDS,
+    PACKET_TYPES,
     PacketType,
     StreamPacket,
     StreamPacketDecoder,
+    packet_name,
+    payload_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,10 +27,10 @@ type Handler = Callable[[PlayerId, dict], None]
 
 
 class ConnectionPool(Protocol):
-    """streaming 需要 p2p 提供的介面（待與 P2P Infra 確認）。"""
+    """streaming 用到的 p2p 介面（p2p 的連線池另外還有 ``send`` 與 ``drain``，這裡用不到）。"""
 
-    def send(self, peer_id: PlayerId, data: bytes) -> None:
-        """把 bytes 送給指定的 peer。"""
+    def send_many(self, peer_ids: Iterable[PlayerId], data: bytes) -> None:
+        """把 bytes 送給多個指定的 peer；空清單會丟 ``ValueError``，不會被當成「全部」。"""
         ...
 
     def broadcast(self, data: bytes) -> None:
@@ -48,9 +50,9 @@ class StreamManager:
 
         :raises ValueError: 未知的封包類型
         """
-        if packet_type not in PacketType.ALL:
+        if packet_type not in PACKET_TYPES:
             raise ValueError(f"unknown packet type: {packet_type!r}")
-        self._handlers.setdefault(packet_type, []).append(handler)
+        self._handlers.setdefault(PacketType(packet_type), []).append(handler)
 
     def handle_incoming_data(self, peer_id: PlayerId, raw_data: bytes) -> None:
         """p2p 收到某個 peer 的 bytes 時呼叫。壞資料只會被記錄並丟棄，不會丟例外。"""
@@ -72,23 +74,23 @@ class StreamManager:
         self._decoders.pop(peer_id, None)
 
     def _dispatch_packet(self, peer_id: PlayerId, packet_type: int, payload: dict) -> None:
-        missing = [k for k in REQUIRED_FIELDS.get(packet_type, ()) if k not in payload]
-        if missing:
+        error = payload_error(packet_type, payload)
+        if error:
             logger.error(
-                "Packet 0x%02x from %s missing fields %s; dropped.", packet_type, peer_id, missing
+                "Packet %s from %s invalid (%s); dropped.", packet_name(packet_type), peer_id, error
             )
             return
 
         handlers = self._handlers.get(packet_type, [])
         if not handlers:
-            logger.debug("No handler for packet 0x%02x from %s.", packet_type, peer_id)
+            logger.debug("No handler for packet %s from %s.", packet_name(packet_type), peer_id)
             return
 
         for handler in handlers:
             try:
                 handler(peer_id, payload)
             except Exception:
-                logger.exception("Handler for packet 0x%02x raised.", packet_type)
+                logger.exception("Handler for packet %s raised.", packet_name(packet_type))
 
     # ------------------------------------------------------------------ 送出（單播）
     def send_draw_stroke(self, target_peers: Iterable[PlayerId], stroke_data: dict) -> None:
@@ -135,8 +137,11 @@ class StreamManager:
 
     # ------------------------------------------------------------------ 送出（廣播）
     def broadcast_round_state(self, state: Phase | str) -> None:
-        """房主 → 所有人：同步目前的回合階段。"""
-        self._broadcast(PacketType.ROUND_STATE_SYNC, {"state": str(state)})
+        """房主 → 所有人：同步目前的回合階段。
+
+        :raises ValueError: ``state`` 不是合法的 ``Phase``（打錯字會在送出前就被擋下）
+        """
+        self._broadcast(PacketType.ROUND_STATE_SYNC, {"state": Phase(state).value})
 
     def broadcast_round_result(
         self, spy: PlayerId, answer: str, scores: dict[PlayerId, int]
@@ -162,11 +167,9 @@ class StreamManager:
         if single and len(peers) != 1:
             raise ValueError("this packet must be sent to exactly one peer")
 
-        packet = StreamPacket.encode(packet_type, payload)
-        for peer_id in peers:
-            self.pool.send(peer_id, packet)
+        self.pool.send_many(peers, StreamPacket.encode(packet_type, payload))
 
     def _broadcast(self, packet_type: int, payload: dict) -> None:
         if packet_type not in BROADCAST_TYPES:
-            raise ValueError(f"packet 0x{packet_type:02x} must not be broadcast (ADR 0005)")
+            raise ValueError(f"packet {packet_name(packet_type)} must not be broadcast (ADR 0005)")
         self.pool.broadcast(StreamPacket.encode(packet_type, payload))

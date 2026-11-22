@@ -23,7 +23,8 @@
 - `DRAW_STROKE` 在畫圖階段要不要用（Canvas / Core 決定）。
 - `CANVAS_SNAPSHOT` 的圖片格式與大小，需要 Canvas 確認。
 - `DEAL_WORD` 沒有帶角色欄位，UI 如何得知自己是間諜（Core 決定）。
-- p2p 的 `send` / `broadcast` 介面需要 P2P Infra 確認。
+- 大廳封包（加入房間、公告誰是房主、玩家名單）由 issue #7 處理。
+- 房主自己也是玩家：送給自己 / 廣播不會送到自己，需要本機直送機制（issue #7 討論）。
 
 ## 完成前
 `uv run ruff check . && uv run ruff format --check . && uv run lint-imports && uv run pytest`

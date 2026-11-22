@@ -10,7 +10,12 @@ from pretend2paint.streaming import (
     StreamPacket,
     StreamPacketDecoder,
 )
-from pretend2paint.streaming.protocol import BROADCAST_TYPES, REQUIRED_FIELDS
+from pretend2paint.streaming.protocol import (
+    BROADCAST_TYPES,
+    PACKET_TYPES,
+    REQUIRED_FIELDS,
+    packet_name,
+)
 
 
 class MockConnectionPool:
@@ -22,6 +27,13 @@ class MockConnectionPool:
 
     def send(self, peer_id, data):
         self.sent.append((peer_id, data))
+
+    def send_many(self, peer_ids, data):
+        peer_ids = list(peer_ids)
+        if not peer_ids:
+            raise ValueError("peer_ids must not be empty")
+        for peer_id in peer_ids:
+            self.send(peer_id, data)
 
     def broadcast(self, data):
         self.broadcasted.append(data)
@@ -43,7 +55,7 @@ def raw_packet(packet_type: int, payload_bytes: bytes) -> bytes:
 
 class TestEncodeDecode(unittest.TestCase):
     def test_roundtrip_every_packet_type(self):
-        for packet_type in sorted(PacketType.ALL):
+        for packet_type in sorted(PACKET_TYPES):
             with self.subTest(packet_type=packet_type):
                 payload = {"k": "值", "n": 1}
                 ptype, pdata = decode_one(StreamPacket.encode(packet_type, payload))
@@ -82,11 +94,18 @@ class TestEncodeDecode(unittest.TestCase):
                 "SPY_GUESS": 0x08,
                 "ROUND_RESULT": 0x09,
             },
-            {k: v for k, v in vars(PacketType).items() if k.isupper() and k != "ALL"},
+            {member.name: member.value for member in PacketType},
         )
 
+    def test_packet_type_is_int_enum_with_readable_names(self):
+        packet_type, _ = decode_one(StreamPacket.encode(PacketType.VOTE, {"target": "x"}))
+        self.assertIsInstance(packet_type, PacketType)
+        self.assertEqual(packet_type, 7)  # 仍可當整數比較
+        self.assertEqual(packet_name(7), "VOTE")
+        self.assertEqual(packet_name(0x7F), "0x7f")
+
     def test_every_type_has_required_fields_entry(self):
-        self.assertEqual(set(REQUIRED_FIELDS), set(PacketType.ALL))
+        self.assertEqual(set(REQUIRED_FIELDS), set(PACKET_TYPES))
 
 
 class TestFraming(unittest.TestCase):
@@ -239,6 +258,18 @@ class TestManagerReceive(unittest.TestCase):
         )
         self.assertEqual(self.received, [])
 
+    def test_unknown_phase_in_round_state_is_dropped(self):
+        got = []
+        self.manager.register_handler(PacketType.ROUND_STATE_SYNC, lambda p, d: got.append(d))
+        for state in ("dawing", 5, ["drawing"], {"a": 1}):
+            with self.subTest(state=state):
+                data = StreamPacket.encode(PacketType.ROUND_STATE_SYNC, {"state": state})
+                self.manager.handle_incoming_data("host", data)
+        self.manager.handle_incoming_data(
+            "host", StreamPacket.encode(PacketType.ROUND_STATE_SYNC, {"state": "drawing"})
+        )
+        self.assertEqual(got, [{"state": "drawing"}])
+
     def test_handler_exception_does_not_break_others(self):
         def boom(peer, payload):
             raise RuntimeError("boom")
@@ -348,6 +379,17 @@ class TestManagerSend(unittest.TestCase):
         (data,) = self.pool.broadcasted
         self.assertEqual(decode_one(data), (PacketType.ROUND_STATE_SYNC, {"state": "drawing"}))
 
+    def test_broadcast_round_state_rejects_unknown_phase(self):
+        for bad in ("dawing", "", "DRAWING", 5, None):
+            with self.subTest(state=bad), self.assertRaises(ValueError):
+                self.manager.broadcast_round_state(bad)  # type: ignore[arg-type]
+        self.assertEqual(self.pool.broadcasted, [])
+
+    def test_broadcast_round_state_accepts_phase_value_string(self):
+        self.manager.broadcast_round_state("voting")
+        (data,) = self.pool.broadcasted
+        self.assertEqual(decode_one(data), (PacketType.ROUND_STATE_SYNC, {"state": "voting"}))
+
     def test_broadcast_round_result(self):
         self.manager.broadcast_round_result("bob", "西瓜", {"alice": 1, "bob": -1})
         (data,) = self.pool.broadcasted
@@ -362,7 +404,7 @@ class TestManagerSend(unittest.TestCase):
     def test_secret_packets_cannot_be_broadcast(self):
         """ADR 0005：只有 BROADCAST_TYPES 可以廣播。"""
         self.assertEqual(BROADCAST_TYPES, {PacketType.ROUND_STATE_SYNC, PacketType.ROUND_RESULT})
-        for packet_type in PacketType.ALL - BROADCAST_TYPES:
+        for packet_type in PACKET_TYPES - BROADCAST_TYPES:
             with self.subTest(packet_type=packet_type), self.assertRaises(ValueError):
                 self.manager._broadcast(packet_type, {})
         self.assertEqual(self.pool.broadcasted, [])

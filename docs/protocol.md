@@ -40,6 +40,7 @@ streaming 的程式只允許 `ROUND_STATE_SYNC` 與 `ROUND_RESULT` 廣播，其�
 - Magic 不符、未知 Type、Length 超過上限
 - payload 不是合法的 UTF-8 / JSON，或頂層不是 JSON 物件
 - 缺少上表標示的必備欄位（`DRAW_STROKE` 沒有必備欄位）
+- `ROUND_STATE_SYNC` 的 `state` 不是合法的 `common.types.Phase` 值
 
 ## 機密規則（[ADR 0005](decisions/0005-secret-information.md)）
 
@@ -59,4 +60,5 @@ streaming 的程式只允許 `ROUND_STATE_SYNC` 與 `ROUND_RESULT` 廣播，其�
 1. **`DRAW_STROKE` 要不要用**：畫圖階段畫作不公開，所以筆畫不能廣播。建議畫圖階段只在本機畫，畫完用 `CANVAS_SNAPSHOT` 送給房主；若採用，`DRAW_STROKE` 可能用不到。（Canvas / Core 決定）
 2. **`CANVAS_SNAPSHOT` 的圖片格式**：目前暫定 base64 PNG，單個封包上限 4 MiB。需要 Canvas 確認畫布輸出格式與大小。
 3. **`DEAL_WORD` 沒有帶角色欄位**：UI 要如何知道自己是間諜（影響畫面顯示）？由 Core 決定是否額外單播一個欄位，或由 UI 從 Core 的狀態取得。
-4. **p2p 介面**：streaming 假設 p2p 提供 `send(peer_id, data: bytes)` 與 `broadcast(data: bytes)`（見 `streaming/README.md`），待 P2P Infra 確認。
+4. **大廳相關封包**（加入房間、公告誰是房主、玩家名單）：權威節點改為「所有人都下場玩，裁判邏輯放在開房者的程式裡」，之後會發 ADR。這些封包**不在這個 PR**，由 issue #7 處理。
+5. **房主自己也是玩家**：p2p 的連線清單不包含自己，所以 `send_*` 對自己的 peer id 會失敗、`broadcast_*` 也不會送給自己；房主自己的發題、階段同步、投票都需要「本機直接送到自己的 handler」的機制。放在 `StreamManager`（傳入自己的 peer id，送給自己時直接分發）還是由 Core / `__main__` 處理，在 issue #7 一起討論。
