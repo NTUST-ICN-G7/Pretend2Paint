@@ -24,8 +24,20 @@ UI 框架使用 **tkinter**（Python 內建，不需額外安裝，有 `Canvas` 
 | 6 | Spy Drawing | `SPY_ACTION` | 成員 B |
 | 7 | Reveal | `REVEAL` | 成員 C |
 | 8 | Voting | `VOTING` | 成員 C |
-| 9 | Spy Guess | `SPY_GUESS` | 成員 D |
-| 10 | Round Result | `ROUND_END` | 成員 D |
+| 9 | Round Result | `ROUND_END` | 成員 D |
+
+> 依 UI 組討論的規則，**取消「間諜猜答案」**（原畫面 Spy Guess／`SPY_GUESS`），投票結束後直接結算，見下方「遊戲規則（UI 組版本）」。
+
+## 遊戲規則（UI 組版本）
+
+> 與 [`docs/game-rules.md`](../../../docs/game-rules.md) 有差異的地方以 **粗體** 標示，待 team leader／Core 組確認後同步更新該文件。
+
+1. **發題**：一般玩家拿到答案（例：「西瓜」），間諜只拿到提示（例：「兩個字的水果」）。
+2. **畫圖**：一般玩家先各自畫圖，畫作不公開。
+3. **間諜行動**：一般玩家畫完後，間諜從一般玩家的畫作中盲選 1 張作為參考，再畫自己的圖。
+4. **公開**：所有畫作（包含間諜的）**以隨機順序、匿名方式**同時顯示在所有人的螢幕上；被間諜選為參考的那張畫作會加上標記，證明**這張圖一定是一般玩家畫的**。
+5. **投票**：所有人**投票選出自己認為是間諜畫的那張畫作**（投畫作編號，不是投玩家名字）。
+6. **結算**：間諜的畫作若獲得**最高票**，一般玩家獲勝；否則間諜獲勝。**沒有間諜猜答案的環節。**
 
 ## 整體切換流程
 
@@ -37,10 +49,9 @@ Landing
        └─ DEAL → Role & Prompt
             └─ DRAWING → Drawing（一般玩家畫圖；間諜等待）
                  └─ SPY_ACTION → Spy Reference（間諜盲選）→ Spy Drawing（間諜畫圖）
-                      └─ REVEAL → Reveal（公開畫廊）
+                      └─ REVEAL → Reveal（隨機、匿名公開畫廊）
                            └─ VOTING → Voting（同一畫面，啟用投票）
-                                ├─ SPY_GUESS（間諜被票出）→ Spy Guess → ROUND_END
-                                └─ ROUND_END（間諜沒被票出）→ Round Result
+                                └─ ROUND_END → Round Result（公布間諜與勝負）
                                      └─ 下一回合 → Role & Prompt／遊戲結束（待定）
 ```
 
@@ -56,7 +67,8 @@ Landing
 - 答案、提示、間諜身分只能由 Core 提供給**當事人**；UI 不可顯示玩家不該知道的資訊。
 - 間諜的畫面在任何階段都**不可出現答案**。
 - 進入 `REVEAL` 之前，畫作只送給房主，不可讓其他玩家（包含間諜）看到。
-- 答案與間諜身分只在 `ROUND_RESULT`（畫面 10）才公開。
+- `REVEAL`／`VOTING` 階段畫作**匿名、隨機排序**，畫面上不可出現作者名稱。
+- 答案、間諜身分、每張畫作的作者只在 `ROUND_RESULT`（畫面 9）才公開。
 
 ---
 
@@ -229,13 +241,13 @@ Spy Drawing — 間諜
 本畫面負責 `REVEAL`（公開）與 `VOTING`（投票）兩個階段，以**同一個畫面、兩種狀態**呈現，讓玩家看著畫作投票。
 
 - 只跟 `core` 往來，不 import `streaming` / `p2p`。
-- 不判斷遊戲規則（誰被票出、要不要進入猜答案），只依 core 送來的階段狀態顯示。
-- 不顯示答案、不顯示間諜身分。
+- 不判斷遊戲規則（哪張畫作最高票、誰獲勝），只依 core 送來的階段狀態顯示。
+- 不顯示答案、不顯示間諜身分、**不顯示畫作作者**。
 
 | 狀態 | 遊戲階段 | 顯示內容 |
 | :--- | :--- | :--- |
-| 狀態 1（公開） | `REVEAL` | 所有玩家的畫作畫廊（含作者名稱）；被間諜選為參考的畫作加上標記（代表該作者一定不是間諜）；不顯示答案，也不顯示間諜身分。 |
-| 狀態 2（投票） | `VOTING` | 保留同一份畫廊，加上可投票的玩家名單、選取可疑對象、送出投票按鈕；送出後顯示等待狀態。 |
+| 狀態 1（公開） | `REVEAL` | 所有玩家（含間諜）的畫作畫廊，**以隨機順序、匿名編號（#1、#2…）顯示，不顯示作者**；被間諜選為參考的畫作加上標記（代表這張圖一定是一般玩家畫的）；不顯示答案，也不顯示間諜身分。 |
+| 狀態 2（投票） | `VOTING` | 保留同一份畫廊，加上**畫作編號的投票選項**（被標記的畫作不能投）、送出投票按鈕；送出後顯示等待狀態。 |
 
 ### 狀態切換
 
@@ -245,8 +257,8 @@ UI **只看 `ROUND_STATE_SYNC` 的 `state`**，不自行推斷：
 Spy Drawing（成員 B）
   └─ ROUND_STATE_SYNC {"state": "reveal"}  → 狀態 1：公開畫廊，投票控制停用
        └─ ROUND_STATE_SYNC {"state": "voting"} → 狀態 2：同一畫面，啟用投票
-            └─ ROUND_STATE_SYNC {"state": "spy_guess"} 或 {"state": "round_end"}
-                 → 本畫面結束，交給 Spy Guess／Round Result（成員 D）
+            └─ ROUND_STATE_SYNC {"state": "round_end"}
+                 → 本畫面結束，交給 Round Result（成員 D）
 ```
 
 `state` 的值就是 `common.types.Phase`。**core 仍須把 `REVEAL` 與 `VOTING` 視為兩個獨立階段、分別送 `ROUND_STATE_SYNC`**；UI 不合併、不省略事件，也不自行判斷何時切換狀態。
@@ -257,32 +269,32 @@ UI → Core
 
 | 封包 | Type | 方向 | 傳送方式 | Payload |
 | :--- | :--- | :--- | :--- | :--- |
-| `VOTE` | `0x07` | 玩家 → 房主 | → 房主（單播） | `{"suspect_id": PlayerId}`（欄位未定） |
+| `VOTE` | `0x07` | 玩家 → 房主 | → 房主（單播） | `{"drawing_index": int}`（投畫作編號，由房主對應到作者；欄位未定） |
 
-送出時機：狀態 2 中玩家選好對象並按下送出。送出後鎖定，避免重複投票。
+送出時機：狀態 2 中玩家選好畫作並按下送出。送出後鎖定，避免重複投票。
 
 Core → UI
 
 | 封包 | Type | 方向 | 傳送方式 | Payload | 用途 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `ROUND_STATE_SYNC` | `0x03` | 房主 → 所有人 | 廣播 | `{"state": "reveal"}` | 進入公開狀態 |
-| `CANVAS_SNAPSHOT` | `0x04` | 房主 → 所有人 | 廣播 | **尚未定義（protocol 待決 #2）** | 公開所有畫作與被標記的參考畫 |
+| `CANVAS_SNAPSHOT` | `0x04` | 房主 → 所有人 | 廣播 | **尚未定義（protocol 待決 #2）**；需為隨機排序後的匿名畫作，**不可帶作者** | 公開所有畫作與被標記的參考畫 |
 | `ROUND_STATE_SYNC` | `0x03` | 房主 → 所有人 | 廣播 | `{"state": "voting"}` | 進入投票狀態 |
-| `ROUND_STATE_SYNC` | `0x03` | 房主 → 所有人 | 廣播 | `{"state": "spy_guess"}` | 投票結束、進入猜答案（本畫面結束） |
-| `ROUND_RESULT` | `0x09` | 房主 → 所有人 | 廣播 | 尚未定義 | 回合結果，交給結算畫面 |
+| `ROUND_STATE_SYNC` | `0x03` | 房主 → 所有人 | 廣播 | `{"state": "round_end"}` | 投票結束（本畫面結束） |
+| `ROUND_RESULT` | `0x09` | 房主 → 所有人 | 廣播 | 見成員 D | 回合結果，交給結算畫面 |
 
 ### 保密規則
 
 - `REVEAL` 與 `VOTING` 都**不可顯示答案**；答案依 protocol 只在 `ROUND_RESULT` 公開。
-- **不可顯示間諜身分**。`ROUND_STATE_SYNC` 只帶 `state`，不帶「誰是間諜」。
-- 被標記的畫作只代表「**作者一定不是間諜**」，不代表其他人是間諜。
+- **不可顯示間諜身分與畫作作者**。`ROUND_STATE_SYNC` 只帶 `state`；`CANVAS_SNAPSHOT` 不帶作者，畫作順序由房主隨機打亂。
+- 被標記的畫作只代表「**這張圖一定是一般玩家畫的**」，不代表其他畫作是間諜畫的。
 - 畫作在 `REVEAL` 之前只能送給房主（ADR 0005）；本畫面收到的 `CANVAS_SNAPSHOT` 是房主在 `REVEAL` 之後才廣播的。
 
 ### 共用顯示元件（不綁定 GUI 框架）
 
-- **畫作卡片**：顯示 `drawing` 與作者名稱；唯讀，不可編輯。
-- **標記徽章**：被間諜選為參考的畫作附加「一定不是間諜」說明（欄位依 `CANVAS_SNAPSHOT` 的定義）。
-- **投票清單**：列出候選人，一次只能選一個 `suspect_id`；收到 `{"state": "voting"}` 之前保持停用，收到後才啟用；按下送出後鎖定，避免重複投票，並透過 `VOTE` 送進 `net_queue`。
+- **畫作卡片**：顯示 `drawing` 與匿名編號（#1、#2…）；唯讀，不可編輯，不顯示作者。
+- **標記徽章**：被間諜選為參考的畫作附加「一定是一般玩家畫的」說明（欄位依 `CANVAS_SNAPSHOT` 的定義）。
+- **投票清單**：列出畫作編號，一次只能選一張；被標記的畫作不能選；收到 `{"state": "voting"}` 之前保持停用，收到後才啟用；按下送出後鎖定，避免重複投票，並透過 `VOTE` 送進 `net_queue`。
 - **等待區**：送出投票後顯示「已投票，等待其他玩家……」；不自行假設投票成功。
 - **切換狀態時保留畫廊與捲動位置**，不重建整個畫面。
 
@@ -290,25 +302,25 @@ Core → UI
 
 Reveal & Voting — 狀態 1：公開（唯讀，`REVEAL`）
 
-    公開畫作                          回合：1
+    公開畫作（隨機順序、匿名）            回合：1
 
-    [ Alice 的畫作 ]    [ Bob 的畫作（一定不是間諜） ]
+    [ 畫作 #1 ]    [ 畫作 #2（一定是一般玩家畫的） ]
 
-    [ Charlie 的畫作 ]  [ Dave 的畫作 ]
+    [ 畫作 #3 ]    [ 畫作 #4 ]
 
-    標記說明：被間諜選為參考的畫作，其作者一定不是間諜
+    標記說明：被間諜選為參考的畫作，一定是一般玩家畫的
     等待 core 通知進入投票階段……
 
 Reveal & Voting — 狀態 2：投票（`VOTING`，同一畫面）
 
     （上方畫作畫廊保留不變，以下為新增的投票區）
 
-    投票：你認為誰是間諜？
+    投票：你認為哪一張是間諜畫的？
 
-      ( ) Alice
-      ( ) Bob（一定不是間諜）
-      ( ) Charlie
-      ( ) Dave
+      ( ) 畫作 #1
+      ( ) 畫作 #2（已標記，不能投）
+      ( ) 畫作 #3
+      ( ) 畫作 #4
 
     [送出投票]
 
@@ -316,56 +328,42 @@ Reveal & Voting — 狀態 2：投票（`VOTING`，同一畫面）
 
 ---
 
-## 畫面 9～10：Spy Guess、Round Result（成員 D）
+## 畫面 9：Round Result（成員 D）
 
 | 畫面 | 遊戲階段 | 顯示內容 |
 | :--- | :--- | :--- |
-| Spy Guess | `SPY_GUESS` | 僅在間諜被票出時出現。間諜：被票出提示、自己的提示、答案輸入框、送出按鈕；其他玩家：被票出的玩家、「間諜正在猜答案……」等待狀態 |
-| Round Result | `ROUND_END` | 間諜身分、正確答案、間諜的提示、間諜猜的答案與對錯（若有猜）、本回合結果、每位玩家本回合得分與總分；下一回合／離開按鈕 |
+| Round Result | `ROUND_END` | 勝負結果、間諜是誰、正確答案與間諜的提示、每張畫作的作者與得票數；下一回合／離開按鈕 |
 
 ```text
 Voting（成員 C）
-  ├─ Core 回報進入 SPY_GUESS（間諜被票出）→ Spy Guess
-  │    └─ Core 回報進入 ROUND_END → Round Result
-  └─ Core 回報進入 ROUND_END（間諜沒被票出）→ Round Result
+  └─ Core 回報進入 ROUND_END → Round Result
        └─ 房主按下一回合 → Core 回報進入 DEAL → Role & Prompt（成員 A）
 ```
 
-### Spy Guess
+### 勝負判定
 
-- 間諜有**一次**機會猜答案；其他玩家只能等待。
-- 猜對或猜錯由**房主（Core）判斷**，UI 不比對答案，也不在此畫面顯示對錯；結果在 Round Result 公布。
-- 「自己是不是間諜」與「提示」沿用 `DEAL_INFO`（成員 A）收到的資料，UI 本地保留，不需要重新傳送。
-- 其他玩家的畫面**不可出現提示或答案**。
-
-### Round Result
-
-本回合的結果依 [`docs/game-rules.md`](../../../docs/game-rules.md) 有三種，由 Core 判斷後告訴 UI，UI 只負責顯示：
+勝負由 **Core 判斷**後告訴 UI，UI 只負責顯示，不自己計票：
 
 | 情況 | 畫面顯示 |
 | :--- | :--- |
-| 間諜**沒有**獲得最高票 | 「間諜成功潛伏！」間諜得分 |
-| 間諜被票出，且猜對答案 | 「間諜猜中答案！」間諜得分 |
-| 間諜被票出，且猜錯答案 | 「間諜被抓到了！」間諜扣分 |
+| 間諜的畫作獲得**最高票** | 「抓到間諜了！一般玩家獲勝」 |
+| 間諜的畫作**沒有**獲得最高票 | 「間諜成功潛伏！間諜獲勝」 |
 
-- 答案與間諜身分**到這個畫面才公開**（對應 `ROUND_RESULT`，房主廣播）。
+- 答案、間諜身分、**每張畫作的作者**都是**到這個畫面才公開**（對應 `ROUND_RESULT`，房主廣播）。
+- 公開時沿用 Reveal 畫面的畫作編號，讓玩家對得起來「#3 原來是 Charlie 畫的」。
 - 「下一回合」按鈕只有房主可以按；其他玩家顯示「等待房主開始下一回合……」。
 
 ### UI → Core
 
 | 事件 | 使用時機 | Payload |
 | :--- | :--- | :--- |
-| `SUBMIT_SPY_GUESS` | 間諜輸入答案並按下送出（對應封包 `SPY_GUESS` `0x08`，間諜 → 房主） | `{"guess": str}` |
 | `NEXT_ROUND` | 房主在 Round Result 按下一回合 | `{}` |
 | `LEAVE_ROOM` | 玩家在 Round Result 按離開房間 | `{}` |
-
-- 輸入框為空時不能送出；送出後鎖定輸入框與按鈕，避免重複送出。
 
 ### Core → UI
 
 | 事件 | 使用時機 | Payload |
 | :--- | :--- | :--- |
-| `SPY_GUESS_START` | Core 通知進入 `SPY_GUESS` | `{"accused_id": PlayerId, "accused_name": str}` |
 | `ROUND_RESULT` | Core 通知進入 `ROUND_END`（對應封包 `ROUND_RESULT` `0x09`，房主 → 所有人） | 見下方 |
 
 `ROUND_RESULT` 規劃格式：
@@ -375,17 +373,16 @@ Voting（成員 C）
     "event": "ROUND_RESULT",
     "payload": {
         "round_number": 1,
+        "winner": "civilians",  # civilians（一般玩家）/ spy（間諜）
         "spy_id": "p3",
         "spy_name": "Charlie",
         "answer": "西瓜",
         "hint": "兩個字的水果",
-        "accused_id": "p3",  # 最高票的玩家；平票規則待定
-        "spy_guess": "哈密瓜",  # 間諜沒被票出時為 None
-        "guess_correct": False,  # 間諜沒被票出時為 None
-        "outcome": "spy_caught",  # spy_escaped / spy_guessed_right / spy_caught
-        "scores": [
-            {"player_id": "p1", "name": "Alice", "delta": 0, "total": 2},
-            {"player_id": "p3", "name": "Charlie", "delta": -1, "total": 0},
+        "drawings": [  # 沿用 Reveal 的畫作編號，公開作者與得票數
+            {"drawing_index": 1, "author_name": "Alice", "votes": 0},
+            {"drawing_index": 2, "author_name": "Bob", "votes": 0, "marked": True},
+            {"drawing_index": 3, "author_name": "Charlie", "votes": 3},
+            {"drawing_index": 4, "author_name": "Dave", "votes": 1},
         ],
         "is_last_round": False,  # 回合數待定
     },
@@ -394,53 +391,44 @@ Voting（成員 C）
 
 ### Prototype（草圖）
 
-Spy Guess — 間諜
-
-    你被票出了！
-    你的提示：兩個字的水果
-
-    猜猜看答案是什麼？（只有一次機會）
-    [____________]
-
-    [送出答案]
-
-    送出後狀態：已送出，等待結果……
-
-Spy Guess — 其他玩家
-
-    Charlie 被票出了！
-
-    間諜正在猜答案……
-
-Round Result
+Round Result — 一般玩家獲勝
 
     第 1 回合結果
 
+    抓到間諜了！一般玩家獲勝 🎉
+
     間諜是：Charlie
-    答案：西瓜　　提示：兩個字的水果
-    間諜猜：哈密瓜（錯誤）
+    答案：西瓜　　間諜拿到的提示：兩個字的水果
 
-    間諜被抓到了！
-
-    玩家       本回合    總分
-    Alice       +0        2
-    Bob         +0        1
-    Charlie     -1        0
-    Dave        +0        1
+    畫作    作者       得票
+    #1      Alice       0
+    #2      Bob         0   （被間諜選為參考）
+    #3      Charlie     3   ← 間諜
+    #4      Dave        1
 
     房主看到：[下一回合]  [離開房間]
     其他玩家：等待房主開始下一回合……  [離開房間]
+
+Round Result — 間諜獲勝
+
+    第 1 回合結果
+
+    間諜成功潛伏！間諜獲勝
+
+    間諜是：Charlie
+    （其餘同上）
 
 ---
 
 ## 待確認事項
 
-以下問題需要和 Core／Streaming 組確認，確認後更新本文件：
+以下問題需要和 team leader／Core／Streaming 組確認，確認後更新本文件：
 
+- [ ] **遊戲規則同步**：本文件的「遊戲規則（UI 組版本）」與 `docs/game-rules.md` 不同（取消間諜猜答案、畫作匿名、投畫作而非投玩家、改為勝負制）。需更新 `docs/game-rules.md`，並由 Core 組決定是否移除 `Phase.SPY_GUESS` 與 protocol 的 `SPY_GUESS`（`0x08`）。
 - [ ] **UI ↔ Core 事件格式要統一**：成員 A、B、D 以 queue 事件（如 `CREATE_ROOM`、`SUBMIT_DRAWING`）描述，成員 C 以網路封包（如 `VOTE`、`ROUND_STATE_SYNC`）描述；UI 不直接碰封包，建議統一改成 queue 事件，再註明對應的封包。
-- [ ] **被票出的玩家是誰**：protocol 目前沒有封包會把投票結果告訴所有人（`ROUND_STATE_SYNC` 只帶 `state`，`VOTE` 只送給房主），Spy Guess 畫面需要這個資料。
-- [ ] **平票處理、一般玩家計分方式、遊戲共幾回合**：`game-rules.md` 尚未決定，會影響 Round Result 與遊戲結束畫面。
-- [ ] **間諜猜答案是否有時間限制**，時間到時如何處理。
+- [ ] **平票處理**：間諜的畫作與其他畫作同為最高票時，算誰獲勝？
+- [ ] **能不能投自己的畫作**、間諜本人是否也投票。
+- [ ] **計分與回合數**：改成勝負制後，是否還要累計分數？遊戲共幾回合、最後如何決定總冠軍？
 - [ ] **提示重複傳送**：`DEAL_INFO`（成員 A）、`DRAWING_START` 與 `SPY_REFERENCE_*`（成員 B）都帶有 `hint`，是否統一由 `DEAL_INFO` 提供即可。
-- [ ] **`CANVAS_SNAPSHOT` 格式**與 `DrawingPayload` 型別（protocol 待決 #2）。
+- [ ] **`CANVAS_SNAPSHOT` 格式**與 `DrawingPayload` 型別（protocol 待決 #2），需支援匿名編號與參考標記。
 - [ ] **UI 框架定案為 tkinter**：[ADR 0006](../../../docs/decisions/0006-ui-framework.md) 與 `ui/AGENTS.md` 仍寫「待定」，需由 team leader 更新；更新後再補上各畫面的實際 API。
