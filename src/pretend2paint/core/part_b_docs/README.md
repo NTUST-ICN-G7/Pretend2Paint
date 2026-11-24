@@ -6,9 +6,9 @@
 
 ## Scope / 範圍
 
-This package is a network-independent Python 3.10+ game-rules library. It handles secret role assignment, weighted spy selection, automatic civilian-reference selection, anonymous player/drawing labels, sequential civilian-only review, repeated-violation consequences, civilian-only voting, tie-aware scoring, and *void* attempts with correct completed-round accounting. The UI, Socket protocol, reliable server-side timers, reconnection, and actual headless referee engine belong to other teammates.
+This package is a network-independent Python 3.14 game-rules library. It handles secret role assignment, weighted spy selection, automatic civilian-reference selection, anonymous player/drawing labels, sequential civilian-only review, repeated-violation consequences, civilian-only voting, tie-aware scoring, and *void* attempts with correct completed-round accounting. The UI, Socket protocol, reliable server-side timers, reconnection, and in-process referee engine belong to other teammates.
 
-本套件是 Python 3.10+、與網路獨立的遊戲規則函式庫。內容包含秘密分配角色、加權選間諜、自動選取一般玩家參考圖、獨立隨機玩家／畫作編號、依序審查、重複違規處置、只有一般玩家的有效投票、平票計分，以及作廢回合與有效回合數的正確區分。UI、Socket 通訊、伺服器倒數、重連及自動裁判流程引擎由其他組員負責。
+本套件是 Python 3.14、與網路獨立的遊戲規則函式庫。內容包含秘密分配角色、加權選間諜、自動選取一般玩家參考圖、獨立隨機玩家／畫作編號、依序審查、重複違規處置、只有一般玩家的有效投票、平票計分，以及作廢回合與有效回合數的正確區分。UI、Socket 通訊、伺服器倒數、重連及自動裁判流程引擎由其他組員負責。
 
 ## Source files / 檔案
 
@@ -27,7 +27,7 @@ docs/
   game-rules.md
   INTEGRATION.md
   OPEN_DECISIONS.md
-  adr/0008-void-reference-review-and-anonymity.md
+  design-notes.md
 examples/
   rules_demo.py   full two-completed-round example with one void attempt
 tests/
@@ -52,11 +52,11 @@ Alternatively install the wheel locally with `python -m pip install undercover_d
 
 也可直接使用 `python -m pip install undercover_drawing_game_rules-1.2.0-py3-none-any.whl` 安裝 Wheel 套件。
 
-## Confirmed rules in this release / 本版已實作的規則
+## Candidate behaviors / 候選實作行為（非全組定案）
 
 | Area / 項目 | v1.2.0 behavior / 行為 |
 |---|---|
-| Referee / 裁判 | Separate automatic process, not a human player / 獨立程式、不佔真人名額 |
+| Referee / 裁判 | Component inside the room creator's game process / 開房者程式內的元件，不另佔玩家名額 |
 | Players / 人數 | 4–7 humans, all can play / 4–7 人全部參與 |
 | Spy / 間諜 | Weighted random using completed role history only / 依已完成回合歷史加權隨機 |
 | Word / 題目 | Civilians get answer, spy receives hint only / 一般玩家拿答案、間諜只拿提示 |
@@ -141,6 +141,6 @@ The complete, executable integration-style example is in `examples/rules_demo.py
 
 ## Documentation / 文件
 
-Read `docs/game-rules.md`, `docs/INTEGRATION.md`, `docs/OPEN_DECISIONS.md`, `docs/adr/0008-void-reference-review-and-anonymity.md`, and `QA_REPORT.md` before connecting a network/UI layer.
+Related candidate records: [game-rules.md](game-rules.md), [INTEGRATION.md](INTEGRATION.md), [OPEN_DECISIONS.md](OPEN_DECISIONS.md), [design-notes.md](design-notes.md), and [QA_REPORT.md](QA_REPORT.md).
 
 在接入網路／UI 前，應閱讀上述規則、整合、待確認事項、決策紀錄與測試報告。
