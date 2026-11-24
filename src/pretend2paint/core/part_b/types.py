@@ -7,27 +7,32 @@ from enum import StrEnum
 type PlayerId = str
 type DrawingId = str
 
+
 class RuleError(ValueError):
     """Invalid player action or inconsistent authoritative state."""
+
 
 class Phase(StrEnum):
     LOBBY = "LOBBY"
     DEAL = "DEAL"
     DRAWING = "DRAWING"
     SPY_ACTION = "SPY_ACTION"
-    REVIEW = "REVIEW"       # Sequential civilian-only moderation, 5 seconds/drawing
+    REVIEW = "REVIEW"  # Sequential civilian-only moderation, 5 seconds/drawing
     VOTING = "VOTING"
     SPY_GUESS = "SPY_GUESS"
-    REVEAL = "REVEAL"       # FULL reveal only after outcome is locked
+    REVEAL = "REVEAL"  # FULL reveal only after outcome is locked
     ROUND_END = "ROUND_END"
+
 
 class Role(StrEnum):
     CIVILIAN = "CIVILIAN"
     SPY = "SPY"
 
+
 class RoundStatus(StrEnum):
     SCORED = "SCORED"
     VOID_REFERENCE_VIOLATION = "VOID_REFERENCE_VIOLATION"
+
 
 class VoteStatus(StrEnum):
     SPY_CAUGHT = "SPY_CAUGHT"

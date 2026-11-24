@@ -31,8 +31,10 @@ def _players(sequence: Sequence[PlayerId], *, allow_empty: bool = False) -> tupl
 
 # --- Role assignment and private deals ---
 
+
 def choose_spy(
-    players: Sequence[PlayerId], rng: random.Random,
+    players: Sequence[PlayerId],
+    rng: random.Random,
     history: Mapping[PlayerId, int] | None = None,
 ) -> PlayerId:
     """Weighted random: w_i=1/(1+completed_spy_rounds_i)^2.
@@ -44,11 +46,10 @@ def choose_spy(
     if history is None:
         return rng.choice(people)
     if not isinstance(history, Mapping) or any(
-        pid not in people or type(count) is not int or count < 0
-        for pid, count in history.items()
+        pid not in people or type(count) is not int or count < 0 for pid, count in history.items()
     ):
         raise RuleError("history must map active PlayerIds to nonnegative integers")
-    weights = [1 / (1 + history.get(pid,0)) ** 2 for pid in people]
+    weights = [1 / (1 + history.get(pid, 0)) ** 2 for pid in people]
     return rng.choices(people, weights=weights, k=1)[0]
 
 
@@ -66,11 +67,14 @@ def deal_words(players: Sequence[PlayerId], spy: PlayerId, card: WordCard) -> di
     if not isinstance(card, WordCard):
         raise RuleError("card must be a WordCard")
     # Do not include the answer in the spy's Deal (or the hint in civilians' Deals).
-    return {player: Deal(Role.SPY, card.hint) if player == spy
-            else Deal(Role.CIVILIAN, card.answer) for player in people}
+    return {
+        player: Deal(Role.SPY, card.hint) if player == spy else Deal(Role.CIVILIAN, card.answer)
+        for player in people
+    }
 
 
 # --- Blind reference selection ---
+
 
 def complete_drawings[DrawingT](
     players: Sequence[PlayerId],
@@ -92,8 +96,9 @@ def complete_drawings[DrawingT](
         raise RuleError("blank_factory must be callable")
     if any(player not in eligible for player in received):
         raise RuleError("received contains a non-eligible drawing author")
-    return {player: received[player] if player in received else blank_factory()
-            for player in eligible}
+    return {
+        player: received[player] if player in received else blank_factory() for player in eligible
+    }
 
 
 def shuffle_gallery(authors: Sequence[PlayerId], rng: random.Random) -> list[PlayerId]:
@@ -120,6 +125,7 @@ def random_pick_index(count: int, rng: random.Random) -> int:
 
 # --- Vote validation and resolution ---
 
+
 def valid_vote_targets(
     players: Sequence[PlayerId], voter: PlayerId, marked: PlayerId | None
 ) -> frozenset[PlayerId]:
@@ -136,9 +142,13 @@ def tally_votes(votes: Mapping[PlayerId, PlayerId]) -> Counter[PlayerId]:
     """Count votes; missing voters are abstentions."""
     if not isinstance(votes, Mapping):
         raise RuleError("votes must be a voter-to-target mapping")
-    if any(not isinstance(voter, str) or not voter.strip() or
-           not isinstance(target, str) or not target.strip()
-           for voter, target in votes.items()):
+    if any(
+        not isinstance(voter, str)
+        or not voter.strip()
+        or not isinstance(target, str)
+        or not target.strip()
+        for voter, target in votes.items()
+    ):
         raise RuleError("votes must contain nonempty PlayerIds")
     return Counter(votes.values())
 
@@ -166,9 +176,14 @@ def resolve_vote(tally: Counter[PlayerId], spy: PlayerId) -> VoteOutcome:
         raise RuleError("spy must be a PlayerId")
     if not tally:
         return VoteOutcome((), False)
-    if any(not isinstance(name, str) or not name.strip() or
-           not isinstance(count, int) or isinstance(count, bool) or count < 0
-           for name, count in tally.items()):
+    if any(
+        not isinstance(name, str)
+        or not name.strip()
+        or not isinstance(count, int)
+        or isinstance(count, bool)
+        or count < 0
+        for name, count in tally.items()
+    ):
         raise RuleError("tally contains invalid entries")
     highest = max(tally.values(), default=0)
     if highest == 0:
@@ -178,6 +193,7 @@ def resolve_vote(tally: Counter[PlayerId], spy: PlayerId) -> VoteOutcome:
 
 
 # --- Guess matching ---
+
 
 def normalize_guess(text: str) -> str:
     """NFKC, remove all Unicode whitespace, then case-fold."""
@@ -195,11 +211,14 @@ def is_correct_guess(guess: str | None, card: WordCard) -> bool:
     normalized = normalize_guess(guess)
     if not normalized:
         return False
-    return normalized in {normalize_guess(card.answer),
-                          *(normalize_guess(alias) for alias in card.aliases)}
+    return normalized in {
+        normalize_guess(card.answer),
+        *(normalize_guess(alias) for alias in card.aliases),
+    }
 
 
 # --- Score accounting ---
+
 
 @dataclass(frozen=True)
 class RoundOutcome:
@@ -215,7 +234,8 @@ def validate_votes(
     votes: Mapping[PlayerId, PlayerId],
     players: Sequence[PlayerId],
     marked: PlayerId | None = None,
-    *, spy: PlayerId | None = None,
+    *,
+    spy: PlayerId | None = None,
 ) -> None:
     """Reject invalid ballots (not silently counted): self, unknown or marked.
 
@@ -262,29 +282,38 @@ def score_round(outcome: RoundOutcome, rules: ScoreRules) -> dict[PlayerId, int]
             raise RuleError("Escaping spy must not receive a guess phase")
     elif type(outcome.guess_correct) is not bool:
         raise RuleError("Caught/tied/no-vote spy requires a guess result")
-    result = {p:0 for p in people}
+    result = {p: 0 for p in people}
     if status is VoteStatus.SPY_ESCAPED:
         result[outcome.spy] = rules.spy_escape
     elif status is VoteStatus.SPY_CAUGHT:
-        result[outcome.spy] = (rules.spy_caught_guess_right if outcome.guess_correct
-                               else rules.spy_caught_guess_wrong)
+        result[outcome.spy] = (
+            rules.spy_caught_guess_right if outcome.guess_correct else rules.spy_caught_guess_wrong
+        )
     else:
-        result[outcome.spy] = (rules.spy_tie_right if outcome.guess_correct
-                               else rules.spy_tie_wrong)
-    reward = rules.civilian_reward(len(people), caught_wrong=(status is VoteStatus.SPY_CAUGHT and not outcome.guess_correct))
-    for voter,target in outcome.votes.items():
+        result[outcome.spy] = rules.spy_tie_right if outcome.guess_correct else rules.spy_tie_wrong
+    reward = rules.civilian_reward(
+        len(people), caught_wrong=(status is VoteStatus.SPY_CAUGHT and not outcome.guess_correct)
+    )
+    for voter, target in outcome.votes.items():
         if target == outcome.spy:
             result[voter] = reward
     return result
 
 
-def apply_scores(board: Mapping[PlayerId, int], delta: Mapping[PlayerId, int]) -> dict[PlayerId, int]:
+def apply_scores(
+    board: Mapping[PlayerId, int], delta: Mapping[PlayerId, int]
+) -> dict[PlayerId, int]:
     """Return a new scoreboard without mutating either input mapping."""
     if not isinstance(board, Mapping) or not isinstance(delta, Mapping):
         raise RuleError("Scoreboard and delta must be mappings")
-    if any(not isinstance(player, str) or not player.strip() or
-           not isinstance(points, int) or isinstance(points, bool)
-           for collection in (board, delta) for player, points in collection.items()):
+    if any(
+        not isinstance(player, str)
+        or not player.strip()
+        or not isinstance(points, int)
+        or isinstance(points, bool)
+        for collection in (board, delta)
+        for player, points in collection.items()
+    ):
         raise RuleError("Scores must have valid PlayerId and integer points")
     result = dict(board)
     for player, points in delta.items():
@@ -296,9 +325,13 @@ def ranking(board: Mapping[PlayerId, int]) -> list[tuple[PlayerId, int]]:
     """Descending score; ties sorted lexicographically by PlayerId."""
     if not isinstance(board, Mapping):
         raise RuleError("board must be a mapping")
-    if any(not isinstance(player, str) or not player.strip() or
-           not isinstance(points, int) or isinstance(points, bool)
-           for player, points in board.items()):
+    if any(
+        not isinstance(player, str)
+        or not player.strip()
+        or not isinstance(points, int)
+        or isinstance(points, bool)
+        for player, points in board.items()
+    ):
         raise RuleError("board contains invalid entries")
     return sorted(board.items(), key=lambda entry: (-entry[1], entry[0]))
 

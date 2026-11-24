@@ -16,9 +16,16 @@ The complete provisional public interface is exported in `pretend2paint.core.par
 
 ```python
 from pretend2paint.core.part_b import (
-    GameConfig, ScoreRules, WordBank, choose_spy,
-    build_anonymity_map, ModerationLedger, review_round,
-    RoundProgress, settle_round, RoundStatus,
+    GameConfig,
+    ScoreRules,
+    WordBank,
+    choose_spy,
+    build_anonymity_map,
+    ModerationLedger,
+    review_round,
+    RoundProgress,
+    settle_round,
+    RoundStatus,
 )
 ```
 

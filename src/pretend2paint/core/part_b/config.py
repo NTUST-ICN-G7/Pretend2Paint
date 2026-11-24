@@ -9,27 +9,41 @@ from typing import Any
 
 from .types import Phase, RuleError
 
-_TIMED_PHASES = (Phase.DEAL, Phase.DRAWING, Phase.SPY_ACTION,
-                 Phase.REVIEW, Phase.VOTING, Phase.SPY_GUESS,
-                 Phase.REVEAL, Phase.ROUND_END)
+_TIMED_PHASES = (
+    Phase.DEAL,
+    Phase.DRAWING,
+    Phase.SPY_ACTION,
+    Phase.REVIEW,
+    Phase.VOTING,
+    Phase.SPY_GUESS,
+    Phase.REVEAL,
+    Phase.ROUND_END,
+)
 
 
 def default_phase_seconds() -> dict[Phase, float]:
     """Per-stage caps; REVIEW means seconds PER DRAWING, not the entire phase."""
-    return {Phase.DEAL: 5.0, Phase.DRAWING: 30.0,
-            Phase.SPY_ACTION: 30.0, Phase.REVIEW: 5.0,
-            Phase.VOTING: 20.0, Phase.SPY_GUESS: 15.0,
-            Phase.REVEAL: 5.0, Phase.ROUND_END: 5.0}
+    return {
+        Phase.DEAL: 5.0,
+        Phase.DRAWING: 30.0,
+        Phase.SPY_ACTION: 30.0,
+        Phase.REVIEW: 5.0,
+        Phase.VOTING: 20.0,
+        Phase.SPY_GUESS: 15.0,
+        Phase.REVEAL: 5.0,
+        Phase.ROUND_END: 5.0,
+    }
 
 
 @dataclass(frozen=True)
 class ScoreRules:
     """Initial PROVISIONAL balance, freely configurable and not play-tested."""
+
     spy_escape: int = 3
     spy_caught_guess_right: int = 1
     spy_caught_guess_wrong: int = -3
-    civilian_hit: int = 5                 # four-player base
-    civilian_hit_spy_lost: int = 8        # four-player base
+    civilian_hit: int = 5  # four-player base
+    civilian_hit_spy_lost: int = 8  # four-player base
     civilian_per_extra_player: int = 3
     spy_tie_right: int = 1
     spy_tie_wrong: int = 0
@@ -46,7 +60,7 @@ class ScoreRules:
 
 @dataclass(frozen=True)
 class GameConfig:
-    rounds: int = 5                       # completed, not attempted rounds
+    rounds: int = 5  # completed, not attempted rounds
     min_players: int = 4
     max_players: int = 7
     phase_seconds: Mapping[Phase, float] = field(default_factory=default_phase_seconds)
@@ -77,7 +91,9 @@ class GameConfig:
         else:
             if set(self.phase_seconds) != set(_TIMED_PHASES):
                 errors.append("phase_seconds must contain exactly each timed phase")
-            if any(not isinstance(k, Phase) or not _seconds(v) for k,v in self.phase_seconds.items()):
+            if any(
+                not isinstance(k, Phase) or not _seconds(v) for k, v in self.phase_seconds.items()
+            ):
                 errors.append("phase_seconds requires Phase keys and finite positive seconds")
         if not _seconds(self.spy_pick_seconds):
             errors.append("spy_pick_seconds must be finite and positive")
@@ -88,7 +104,12 @@ class GameConfig:
                 v = getattr(self.score, item.name)
                 if not _int_between(v, -1000, 1000):
                     errors.append(f"score.{item.name} must be an integer in [-1000,1000]")
-        if not isinstance(self.review_threshold_ratio, (int,float)) or isinstance(self.review_threshold_ratio,bool) or not math.isfinite(self.review_threshold_ratio) or not 0.5 < self.review_threshold_ratio <= 1:
+        if (
+            not isinstance(self.review_threshold_ratio, (int, float))
+            or isinstance(self.review_threshold_ratio, bool)
+            or not math.isfinite(self.review_threshold_ratio)
+            or not 0.5 < self.review_threshold_ratio <= 1
+        ):
             errors.append("review_threshold_ratio must be > 0.5 and <= 1")
         if not _int_between(self.review_suspension_rounds, 1, 5):
             errors.append("review_suspension_rounds must be 1–5")
@@ -105,9 +126,9 @@ class GameConfig:
             "rounds": self.rounds,
             "min_players": self.min_players,
             "max_players": self.max_players,
-            "phase_seconds": {key.value: value for key,value in self.phase_seconds.items()},
+            "phase_seconds": {key.value: value for key, value in self.phase_seconds.items()},
             "spy_pick_seconds": self.spy_pick_seconds,
-            "score": {f.name: getattr(self.score,f.name) for f in fields(ScoreRules)},
+            "score": {f.name: getattr(self.score, f.name) for f in fields(ScoreRules)},
             "review_threshold_ratio": self.review_threshold_ratio,
             "review_suspension_rounds": self.review_suspension_rounds,
             "author_removal_at": self.author_removal_at,
@@ -126,7 +147,7 @@ class GameConfig:
             if not isinstance(raw, Mapping):
                 raise RuleError("phase_seconds must be a mapping")
             try:
-                phases = {Phase(k):v for k,v in raw.items()}
+                phases = {Phase(k): v for k, v in raw.items()}
             except (ValueError, TypeError) as exc:
                 raise RuleError("Unknown phase") from exc
             if len(phases) != len(raw):
@@ -134,7 +155,9 @@ class GameConfig:
             kwargs["phase_seconds"] = phases
         if "score" in kwargs:
             scores = kwargs["score"]
-            if not isinstance(scores, Mapping) or set(scores) - {f.name for f in fields(ScoreRules)}:
+            if not isinstance(scores, Mapping) or set(scores) - {
+                f.name for f in fields(ScoreRules)
+            }:
                 raise RuleError("Invalid score payload")
             try:
                 kwargs["score"] = ScoreRules(**scores)
@@ -154,4 +177,4 @@ def _int_between(v: object, lo: int, hi: int) -> bool:
 
 
 def _seconds(v: object) -> bool:
-    return isinstance(v, (int,float)) and not isinstance(v,bool) and math.isfinite(v) and v > 0
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v > 0

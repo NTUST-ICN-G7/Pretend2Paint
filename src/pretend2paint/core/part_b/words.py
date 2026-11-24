@@ -14,6 +14,7 @@ from .types import RuleError
 def _normalized(value: str) -> str:
     # The lazy import avoids a circular dependency with rules.py.
     import unicodedata
+
     return "".join(unicodedata.normalize("NFKC", value).split()).casefold()
 
 
@@ -46,8 +47,7 @@ class WordBank:
             if normalized_answer in normalized_hint:
                 raise RuleError(f"Hint reveals answer: {card.answer}")
             if not isinstance(card.aliases, tuple) or any(
-                not isinstance(alias, str) or not _normalized(alias)
-                for alias in card.aliases
+                not isinstance(alias, str) or not _normalized(alias) for alias in card.aliases
             ):
                 raise RuleError(f"Card {number} has invalid aliases")
             if any(_normalized(alias) in normalized_hint for alias in card.aliases):
@@ -81,11 +81,13 @@ class WordBank:
             aliases = item.get("aliases", [])
             if not isinstance(aliases, list):
                 raise RuleError(f"aliases at index {index} must be an array")
-            cards.append(WordCard(
-                answer=item.get("answer"),
-                hint=item.get("hint"),
-                aliases=tuple(aliases),
-            ))
+            cards.append(
+                WordCard(
+                    answer=item.get("answer"),
+                    hint=item.get("hint"),
+                    aliases=tuple(aliases),
+                )
+            )
         return cls(cards)
 
     @classmethod
@@ -102,7 +104,9 @@ class WordBank:
         if not isinstance(used, set):
             raise RuleError("used must be a mutable set of answers")
         normalized_used = {_normalized(item) for item in used if isinstance(item, str)}
-        available = [card for card in self._cards if _normalized(card.answer) not in normalized_used]
+        available = [
+            card for card in self._cards if _normalized(card.answer) not in normalized_used
+        ]
         if not available:
             used.clear()
             available = list(self._cards)

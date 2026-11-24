@@ -49,13 +49,19 @@ def test_bad_json_is_rejected(tmp_path) -> None:
 
 def test_invalid_json_card_is_rejected(tmp_path) -> None:
     path = tmp_path / "bad_card.json"
-    path.write_text(json.dumps([{"answer": "hello", "hint": "world", "aliases": "word"}]), encoding="utf-8")
+    path.write_text(
+        json.dumps([{"answer": "hello", "hint": "world", "aliases": "word"}]), encoding="utf-8"
+    )
     with pytest.raises(RuleError):
         WordBank.from_json(path)
 
 
 def test_no_repeats_until_exhaustion_then_reset() -> None:
-    cards = [WordCard("蘋果", "一種水果"), WordCard("香蕉", "常見熱帶水果"), WordCard("西瓜", "兩個字的水果")]
+    cards = [
+        WordCard("蘋果", "一種水果"),
+        WordCard("香蕉", "常見熱帶水果"),
+        WordCard("西瓜", "兩個字的水果"),
+    ]
     bank = WordBank(cards)
     used: set[str] = set()
     rng = random.Random(45)
@@ -70,10 +76,12 @@ def test_no_repeats_until_exhaustion_then_reset() -> None:
 
 def test_draw_is_deterministic_with_seed() -> None:
     bank = WordBank.default()
+
     def run():
         rng = random.Random(1234)
         used: set[str] = set()
         return [bank.draw(rng, used).answer for _ in range(10)]
+
     assert run() == run()
 
 

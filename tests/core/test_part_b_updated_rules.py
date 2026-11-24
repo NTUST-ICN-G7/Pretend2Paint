@@ -95,14 +95,18 @@ def test_legal_vote_accepted():
 
 def test_marked_target_rejected_by_score_even_if_not_validated_earlier():
     votes = {"b": "c"}
-    outcome = RoundOutcome(PLAYERS, "a", votes, resolve_vote(tally_votes(votes), "a"), None, marked="c")
+    outcome = RoundOutcome(
+        PLAYERS, "a", votes, resolve_vote(tally_votes(votes), "a"), None, marked="c"
+    )
     with pytest.raises(RuleError):
         score_round(outcome, ScoreRules())
 
 
 def test_marked_spy_rejected():
     votes = {"b": "a"}
-    outcome = RoundOutcome(PLAYERS, "a", votes, resolve_vote(tally_votes(votes), "a"), False, marked="a")
+    outcome = RoundOutcome(
+        PLAYERS, "a", votes, resolve_vote(tally_votes(votes), "a"), False, marked="a"
+    )
     with pytest.raises(RuleError):
         score_round(outcome, ScoreRules())
 
@@ -112,7 +116,10 @@ def test_timeout_loses_three_and_civilian_hit_gets_eleven():
     votes = {"b": "a", "c": "a", "d": "a", "e": "b"}
     result = resolve_vote(tally_votes(votes), "a")
     assert result.caught
-    score = score_round(RoundOutcome(PLAYERS, "a", votes, result, is_correct_guess(None, card), marked="e"), ScoreRules())
+    score = score_round(
+        RoundOutcome(PLAYERS, "a", votes, result, is_correct_guess(None, card), marked="e"),
+        ScoreRules(),
+    )
     assert score == {"a": -3, "b": 11, "c": 11, "d": 11, "e": 0}
 
 
@@ -127,5 +134,6 @@ def test_real_civilian_blank_can_be_marked_safe():
 
 def test_word_bank_rejects_alias_visible_in_hint():
     from pretend2paint.core.part_b import WordBank
+
     with pytest.raises(RuleError):
         WordBank([WordCard("西瓜", "this is a watermelon", ("watermelon",))])

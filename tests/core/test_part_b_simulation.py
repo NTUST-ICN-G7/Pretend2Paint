@@ -51,8 +51,11 @@ def test_two_rounds_five_humans_automatic_referee_deterministic() -> None:
                 candidates = valid_vote_targets(players, voter, marked)
                 votes[voter] = sorted(candidates)[0]
             decision = resolve_vote(tally_votes(votes), spy)
-            guess_correct = (None if len(decision.top)==1 and not decision.caught
-                             else is_correct_guess(card.answer, card))
+            guess_correct = (
+                None
+                if len(decision.top) == 1 and not decision.caught
+                else is_correct_guess(card.answer, card)
+            )
             result = RoundOutcome(players, spy, votes, decision, guess_correct, marked=marked)
             delta = score_round(result, config.score)
             assert sum(1 for player in players if player in delta) == 5

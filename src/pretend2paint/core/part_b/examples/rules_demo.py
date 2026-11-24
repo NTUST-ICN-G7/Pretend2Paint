@@ -55,13 +55,15 @@ def main() -> None:
         civilians = tuple(p for p in players if p != spy)
 
         # The referee owns the ID mapping and the frozen drawings.
-        drawing_authors = {f"image-{i}":p for i,p in enumerate(players,1)}
-        drawing_id_for = {p:d for d,p in drawing_authors.items()}
+        drawing_authors = {f"image-{i}": p for i, p in enumerate(players, 1)}
+        drawing_id_for = {p: d for d, p in drawing_authors.items()}
         ids = build_anonymity_map(players, drawing_authors, rng)
         original_drawings = complete_drawings(civilians, {}, lambda: {"strokes": []})
         assert len(original_drawings) == len(civilians)
         secret_order = shuffle_gallery(civilians, rng)
-        reference_author = resolve_blind_pick(secret_order,random_pick_index(len(secret_order),rng))
+        reference_author = resolve_blind_pick(
+            secret_order, random_pick_index(len(secret_order), rng)
+        )
         reference_id = drawing_id_for[reference_author]
 
         # The automatic referee privately shows the selected drawing to the spy.
@@ -69,53 +71,66 @@ def main() -> None:
         review_labels = ids.public_review_order(rng)
         review_order = tuple(ids.drawing_id_for_label(label) for label in review_labels)
         if attempt == 1:
-            approve = civilians[:3]       # 3 / 4 => accepted
-            review_votes = {p:(reference_id,) for p in approve}
+            approve = civilians[:3]  # 3 / 4 => accepted
+            review_votes = {p: (reference_id,) for p in approve}
         else:
-            review_votes = {}             # everyone defaults to NO
+            review_votes = {}  # everyone defaults to NO
         review_result = review_round(
-            players=players,spy=spy,drawing_authors=drawing_authors,
-            review_order=review_order,votes=review_votes,ledger=moderation,
-            rng=rng,scores=config.score,
+            players=players,
+            spy=spy,
+            drawing_authors=drawing_authors,
+            review_order=review_order,
+            votes=review_votes,
+            ledger=moderation,
+            rng=rng,
+            scores=config.score,
             threshold_ratio=config.review_threshold_ratio,
             removal_at=config.author_removal_at,
             suspension_rounds=config.review_suspension_rounds,
             attempt_id=attempt,
         )
-        moderation=review_result.ledger
+        moderation = review_result.ledger
         if reference_id in review_result.flagged_drawings:
             # No ballot and no guess is allowed once the attempt is VOID.
             decision = None
         else:
-            spy_label=ids.drawing_labels[drawing_id_for[spy]]
-            public_votes={p:spy_label for p in civilians}
+            spy_label = ids.drawing_labels[drawing_id_for[spy]]
+            public_votes = {p: spy_label for p in civilians}
             # Client knows ONLY drawing label; referee maps it to player ID.
-            votes=decode_public_votes(public_votes,ids)
-            validate_votes(votes,players,reference_author,spy=spy)
-            verdict=resolve_vote(tally_votes(votes),spy)
-            guess=card.answer if progress.completed_rounds == 0 else None
-            guess_correct=is_correct_guess(guess,card)
-            decision=RoundOutcome(players,spy,votes,verdict,
-                                  guess_correct,marked=reference_author)
-        settled=settle_round(
-            progress=progress,review=review_result,
-            reference_drawing_id=reference_id,drawing_authors=drawing_authors,
-            players=players,spy=spy,spy_history=history,
-            rules=config.score,outcome=decision,
+            votes = decode_public_votes(public_votes, ids)
+            validate_votes(votes, players, reference_author, spy=spy)
+            verdict = resolve_vote(tally_votes(votes), spy)
+            guess = card.answer if progress.completed_rounds == 0 else None
+            guess_correct = is_correct_guess(guess, card)
+            decision = RoundOutcome(
+                players, spy, votes, verdict, guess_correct, marked=reference_author
+            )
+        settled = settle_round(
+            progress=progress,
+            review=review_result,
+            reference_drawing_id=reference_id,
+            drawing_authors=drawing_authors,
+            players=players,
+            spy=spy,
+            spy_history=history,
+            rules=config.score,
+            outcome=decision,
         )
-        history=dict(settled.spy_history)
-        progress=settled.progress
-        board=apply_scores(board,settled.total_delta)
-        print(f"Attempt={attempt}, status={settled.status.value}, "
-              f"completed={progress.completed_rounds}/{progress.target_rounds}, "
-              f"reference={reference_author}, delta={settled.total_delta}")
+        history = dict(settled.spy_history)
+        progress = settled.progress
+        board = apply_scores(board, settled.total_delta)
+        print(
+            f"Attempt={attempt}, status={settled.status.value}, "
+            f"completed={progress.completed_rounds}/{progress.target_rounds}, "
+            f"reference={reference_author}, delta={settled.total_delta}"
+        )
         if settled.status is RoundStatus.VOID_REFERENCE_VIOLATION:
-            assert settled.normal_delta=={p:0 for p in players}
+            assert settled.normal_delta == {p: 0 for p in players}
         if settled.removed_players:
             print("Players removed after settlement:", sorted(settled.removed_players))
             # A must update active roster/reconnect policy and stop if <4.
             break
-    print("Final board:",board)
+    print("Final board:", board)
     assert progress.completed_rounds == 2
     assert progress.attempts_started == 3
     assert sum(history.values()) == 2

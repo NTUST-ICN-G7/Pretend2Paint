@@ -49,13 +49,16 @@ def test_reject_invalid_rounds(rounds) -> None:
         GameConfig.from_payload({"rounds": rounds})
 
 
-@pytest.mark.parametrize("fields", [
-    {"min_players": 3},
-    {"max_players": 8},
-    {"min_players": 7, "max_players": 4},
-    {"min_players": True},
-    {"max_players": "7"},
-])
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"min_players": 3},
+        {"max_players": 8},
+        {"min_players": 7, "max_players": 4},
+        {"min_players": True},
+        {"max_players": "7"},
+    ],
+)
 def test_reject_invalid_player_ranges(fields) -> None:
     assert GameConfig(**fields).validate()
 

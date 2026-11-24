@@ -63,7 +63,9 @@ def test_deal_words_private_role_text() -> None:
     assert set(deals) == set(PLAYERS)
     assert deals[SPY] == Deal(Role.SPY, "兩個字的水果")
     assert all(deals[name] == Deal(Role.CIVILIAN, "西瓜") for name in PLAYERS if name != SPY)
-    assert all(not hasattr(deal, "answer") and not hasattr(deal, "spy_id") for deal in deals.values())
+    assert all(
+        not hasattr(deal, "answer") and not hasattr(deal, "spy_id") for deal in deals.values()
+    )
 
 
 def test_deal_rejects_spy_not_in_players() -> None:
@@ -146,70 +148,98 @@ def test_vote_counter_with_only_zeros() -> None:
     assert resolve_vote(Counter({"a": 0}), "a") == VoteOutcome((), False)
 
 
-@pytest.mark.parametrize("input_text,expected", [
-    (" 西瓜 ", "西瓜"),
-    ("ＷＡＴＥＲＭＥＬＯＮ", "watermelon"),
-    (" W A T E R M E L O N ", "watermelon"),
-    ("water\nmelon", "watermelon"),
-])
+@pytest.mark.parametrize(
+    "input_text,expected",
+    [
+        (" 西瓜 ", "西瓜"),
+        ("ＷＡＴＥＲＭＥＬＯＮ", "watermelon"),
+        (" W A T E R M E L O N ", "watermelon"),
+        ("water\nmelon", "watermelon"),
+    ],
+)
 def test_normalize_guess(input_text, expected) -> None:
     assert normalize_guess(input_text) == expected
 
 
-@pytest.mark.parametrize("guess,correct", [
-    (" 西 瓜 ", True),
-    ("ＷＡＴＥＲＭＥＬＯＮ", True),
-    ("WATERMELON", True),
-    ("water melon", True),
-    ("哈密瓜", False),
-    ("", False),
-    ("西瓜。", False),
-])
+@pytest.mark.parametrize(
+    "guess,correct",
+    [
+        (" 西 瓜 ", True),
+        ("ＷＡＴＥＲＭＥＬＯＮ", True),
+        ("WATERMELON", True),
+        ("water melon", True),
+        ("哈密瓜", False),
+        ("", False),
+        ("西瓜。", False),
+    ],
+)
 def test_is_correct_guess(guess, correct) -> None:
     assert is_correct_guess(guess, CARD) is correct
 
 
 def _score(votes: dict[str, str], guess_correct: bool | None) -> dict[str, int]:
-    outcome = RoundOutcome(PLAYERS, SPY, votes, resolve_vote(tally_votes(votes), SPY), guess_correct)
+    outcome = RoundOutcome(
+        PLAYERS, SPY, votes, resolve_vote(tally_votes(votes), SPY), guess_correct
+    )
     return score_round(outcome, ScoreRules())
 
 
 def test_scoring_spy_escapes_and_civilian_hits() -> None:
     # Unique highest vote is an innocent, so the spy escapes.
-    assert _score({"b":"d", "c":"d", "d":"e", "e":"a"}, None) == {
-        "a":3, "b":0, "c":0, "d":0, "e":8,
+    assert _score({"b": "d", "c": "d", "d": "e", "e": "a"}, None) == {
+        "a": 3,
+        "b": 0,
+        "c": 0,
+        "d": 0,
+        "e": 8,
     }
 
 
 def test_scoring_spy_caught_guesses_right() -> None:
-    assert _score({"b":"a", "c":"a", "d":"a", "e":"d"}, True) == {
-        "a":1, "b":8, "c":8, "d":8, "e":0,
+    assert _score({"b": "a", "c": "a", "d": "a", "e": "d"}, True) == {
+        "a": 1,
+        "b": 8,
+        "c": 8,
+        "d": 8,
+        "e": 0,
     }
 
 
 def test_scoring_spy_caught_guesses_wrong() -> None:
-    assert _score({"b":"a", "c":"a", "d":"a", "e":"d"}, False) == {
-        "a":-3, "b":11, "c":11, "d":11, "e":0,
+    assert _score({"b": "a", "c": "a", "d": "a", "e": "d"}, False) == {
+        "a": -3,
+        "b": 11,
+        "c": 11,
+        "d": 11,
+        "e": 0,
     }
 
 
 def test_score_all_abstain_is_not_escape() -> None:
-    assert _score({}, False) == {"a":0, "b":0, "c":0, "d":0, "e":0}
+    assert _score({}, False) == {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0}
 
 
 def test_score_one_voter_spy_caught() -> None:
-    assert _score({"b":"a"}, False) == {"a":-3, "b":11, "c":0, "d":0, "e":0}
+    assert _score({"b": "a"}, False) == {"a": -3, "b": 11, "c": 0, "d": 0, "e": 0}
 
 
 def test_score_tie_guess_right() -> None:
-    assert _score({"b":"a", "c":"e", "d":"e", "e":"a"}, True) == {
-        "a":1,"b":8,"c":0,"d":0,"e":8,
+    assert _score({"b": "a", "c": "e", "d": "e", "e": "a"}, True) == {
+        "a": 1,
+        "b": 8,
+        "c": 0,
+        "d": 0,
+        "e": 8,
     }
 
 
 def test_score_tie_guess_wrong() -> None:
-    assert _score({"b":"a", "c":"e", "d":"e", "e":"a"}, False) == {
-        "a":0,"b":8,"c":0,"d":0,"e":8,
+    assert _score({"b": "a", "c": "e", "d": "e", "e": "a"}, False) == {
+        "a": 0,
+        "b": 8,
+        "c": 0,
+        "d": 0,
+        "e": 8,
     }
 
 
@@ -223,7 +253,7 @@ def test_guess_required_only_if_caught() -> None:
     with pytest.raises(RuleError):
         _score({"b": "a"}, None)
     with pytest.raises(RuleError):
-        _score({"b":"d", "c":"d", "d":"e", "e":"a"}, False)
+        _score({"b": "d", "c": "d", "d": "e", "e": "a"}, False)
 
 
 def test_self_vote_is_rejected_at_scoring() -> None:
@@ -243,6 +273,4 @@ def test_apply_scores_no_input_mutation_and_negative_scores() -> None:
 
 
 def test_ranking_score_then_player_id() -> None:
-    assert ranking({"d": 2, "c": 5, "b": 5, "a": -1}) == [
-        ("b", 5), ("c", 5), ("d", 2), ("a", -1)
-    ]
+    assert ranking({"d": 2, "c": 5, "b": 5, "a": -1}) == [("b", 5), ("c", 5), ("d", 2), ("a", -1)]
