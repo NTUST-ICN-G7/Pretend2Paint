@@ -46,9 +46,9 @@ ui ──► core ──► streaming ──► p2p
 [送] ui ─(使用者動作)─► core ─(訊息, 對象)─► streaming ─(bytes)─► p2p ─► 網路
 ```
 
-## 權威節點（[ADR 0003](decisions/0003-host-authority.md)）
+## 權威節點（[ADR 0007](decisions/0007-in-process-referee.md)，取代 ADR 0003）
 
-由**房主**統一出題、指定間諜、收集畫作與投票、計分，再把結果發給其他人。其他玩家只送出自己的動作。
+**所有真人都參賽，包含房主。** 房主只額外負責大廳管理；裁判是房主遊戲程式內的 Core 元件，與 p2p、streaming 同在一條背景 asyncio event loop（ADR 0004），不另啟動程序、不額外佔用玩家名額。它統一出題、指定間諜、接收畫作及投票、計分並發送結果；其他玩家端只提交自己的動作。房主可檢查本機秘密狀態的風險在課堂專案中接受。此決策**不核准** REVIEW、VOID 或其他候選玩法。
 
 ## 執行緒模型（[ADR 0004](decisions/0004-threading-model.md)）
 
