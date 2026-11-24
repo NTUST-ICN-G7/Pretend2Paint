@@ -3,17 +3,33 @@
 Run in project root: python -m pretend2paint.core.part_b.examples.rules_demo
 No sockets, UI, asynchronous tasks, or third-party packages are required.
 """
+
 from __future__ import annotations
 
 import random
 
 from pretend2paint.core.part_b import (
-    GameConfig, ModerationLedger, RoundOutcome, RoundProgress,
-    RoundStatus, WordBank, apply_scores, build_anonymity_map,
-    choose_spy, complete_drawings, deal_words, decode_public_votes,
-    is_correct_guess, random_pick_index, resolve_blind_pick,
-    resolve_vote, review_round, score_round, settle_round,
-    shuffle_gallery, tally_votes, validate_votes,
+    GameConfig,
+    ModerationLedger,
+    RoundOutcome,
+    RoundProgress,
+    RoundStatus,
+    WordBank,
+    apply_scores,
+    build_anonymity_map,
+    choose_spy,
+    complete_drawings,
+    deal_words,
+    decode_public_votes,
+    is_correct_guess,
+    random_pick_index,
+    resolve_blind_pick,
+    resolve_vote,
+    review_round,
+    settle_round,
+    shuffle_gallery,
+    tally_votes,
+    validate_votes,
 )
 
 

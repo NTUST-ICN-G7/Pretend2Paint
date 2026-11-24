@@ -1,9 +1,12 @@
 """Settings for the automatic referee and Part B rules (no I/O or timers)."""
+
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
-from typing import Any, Mapping
+from typing import Any
+
 from .types import Phase, RuleError
 
 _TIMED_PHASES = (Phase.DEAL, Phase.DRAWING, Phase.SPY_ACTION,
@@ -63,9 +66,12 @@ class GameConfig:
             errors.append("min_players must be 4–7")
         if not _int_between(self.max_players, 4, 7):
             errors.append("max_players must be 4–7")
-        if isinstance(self.min_players, int) and isinstance(self.max_players, int):
-            if self.min_players > self.max_players:
-                errors.append("min_players must not exceed max_players")
+        if (
+            isinstance(self.min_players, int)
+            and isinstance(self.max_players, int)
+            and self.min_players > self.max_players
+        ):
+            errors.append("min_players must not exceed max_players")
         if not isinstance(self.phase_seconds, Mapping):
             errors.append("phase_seconds must be a mapping")
         else:
@@ -109,7 +115,7 @@ class GameConfig:
         }
 
     @classmethod
-    def from_payload(cls, data: Mapping[str, Any]) -> "GameConfig":
+    def from_payload(cls, data: Mapping[str, Any]) -> GameConfig:
         if not isinstance(data, Mapping):
             raise RuleError("GameConfig payload must be a mapping")
         if set(data) - {f.name for f in fields(cls)}:

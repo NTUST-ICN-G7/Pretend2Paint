@@ -1,11 +1,23 @@
 """Regression tests for user-confirmed rule changes (v1.1.0)."""
+
 import random
+
 import pytest
 
 from pretend2paint.core.part_b import (
-    RuleError, WordCard, ScoreRules, RoundOutcome, complete_drawings,
-    is_correct_guess, shuffle_gallery, resolve_blind_pick, valid_vote_targets,
-    tally_votes, resolve_vote, score_round, validate_votes,
+    RoundOutcome,
+    RuleError,
+    ScoreRules,
+    WordCard,
+    complete_drawings,
+    is_correct_guess,
+    resolve_blind_pick,
+    resolve_vote,
+    score_round,
+    shuffle_gallery,
+    tally_votes,
+    valid_vote_targets,
+    validate_votes,
 )
 
 PLAYERS = ("a", "b", "c", "d", "e")

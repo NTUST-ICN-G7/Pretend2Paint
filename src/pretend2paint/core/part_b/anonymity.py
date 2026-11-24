@@ -1,9 +1,11 @@
 """Secret per-attempt identity mappings. Keep this ENTIRE object referee-private."""
+
 from __future__ import annotations
 
 import random
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+
 from .types import DrawingId, PlayerId, RuleError
 
 

@@ -8,8 +8,8 @@ from __future__ import annotations
 import random
 import unicodedata
 from collections import Counter
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Callable, Mapping, Sequence, TypeVar
 
 from .config import ScoreRules
 from .types import PlayerId, Role, RuleError, VoteStatus
@@ -72,10 +72,7 @@ def deal_words(players: Sequence[PlayerId], spy: PlayerId, card: WordCard) -> di
 
 # --- Blind reference selection ---
 
-DrawingT = TypeVar("DrawingT")
-
-
-def complete_drawings(
+def complete_drawings[DrawingT](
     players: Sequence[PlayerId],
     received: Mapping[PlayerId, DrawingT],
     blank_factory: Callable[[], DrawingT],

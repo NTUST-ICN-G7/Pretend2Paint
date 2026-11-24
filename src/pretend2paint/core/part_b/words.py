@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from .types import RuleError
 
@@ -65,7 +65,7 @@ class WordBank:
         return len(self._cards)
 
     @classmethod
-    def from_json(cls, path: Path) -> "WordBank":
+    def from_json(cls, path: Path) -> WordBank:
         """Read a local JSON list of {answer, hint, aliases?}."""
         try:
             with Path(path).open("r", encoding="utf-8") as stream:
@@ -89,7 +89,7 @@ class WordBank:
         return cls(cards)
 
     @classmethod
-    def default(cls) -> "WordBank":
+    def default(cls) -> WordBank:
         """Load the bundled core/words.json (available when installed as a package)."""
         return cls.from_json(Path(__file__).with_name("words.json"))
 

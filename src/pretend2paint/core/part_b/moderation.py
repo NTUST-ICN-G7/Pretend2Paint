@@ -8,11 +8,14 @@ from __future__ import annotations
 import math
 import random
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
 
 from .config import ScoreRules
 from .types import DrawingId, PlayerId, RuleError
+
+# Safe shared default: ScoreRules is a frozen dataclass.
+_DEFAULT_SCORE_RULES = ScoreRules()
 
 
 @dataclass(frozen=True)
@@ -82,7 +85,7 @@ def review_round(
     votes: Mapping[PlayerId, Sequence[DrawingId]],
     ledger: ModerationLedger,
     rng: random.Random,
-    scores: ScoreRules = ScoreRules(),
+    scores: ScoreRules = _DEFAULT_SCORE_RULES,
     threshold_ratio: float = 2/3,
     removal_at: int = 2,
     suspension_rounds: int = 1,

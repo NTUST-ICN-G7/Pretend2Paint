@@ -1,15 +1,16 @@
 """Shared Part B contracts. The referee, not a human host, owns hidden state."""
-from __future__ import annotations
-from enum import Enum
-from typing import TypeAlias
 
-PlayerId: TypeAlias = str
-DrawingId: TypeAlias = str
+from __future__ import annotations
+
+from enum import StrEnum
+
+type PlayerId = str
+type DrawingId = str
 
 class RuleError(ValueError):
     """Invalid player action or inconsistent authoritative state."""
 
-class Phase(str, Enum):
+class Phase(StrEnum):
     LOBBY = "LOBBY"
     DEAL = "DEAL"
     DRAWING = "DRAWING"
@@ -20,15 +21,15 @@ class Phase(str, Enum):
     REVEAL = "REVEAL"       # FULL reveal only after outcome is locked
     ROUND_END = "ROUND_END"
 
-class Role(str, Enum):
+class Role(StrEnum):
     CIVILIAN = "CIVILIAN"
     SPY = "SPY"
 
-class RoundStatus(str, Enum):
+class RoundStatus(StrEnum):
     SCORED = "SCORED"
     VOID_REFERENCE_VIOLATION = "VOID_REFERENCE_VIOLATION"
 
-class VoteStatus(str, Enum):
+class VoteStatus(StrEnum):
     SPY_CAUGHT = "SPY_CAUGHT"
     SPY_ESCAPED = "SPY_ESCAPED"
     TIE = "TIE"

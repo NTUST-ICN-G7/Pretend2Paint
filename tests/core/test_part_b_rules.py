@@ -6,12 +6,27 @@ from collections import Counter
 import pytest
 
 from pretend2paint.core.part_b import (
-    Deal, Role, RoundOutcome, RuleError, ScoreRules, VoteOutcome, WordCard,
-    apply_scores, choose_spy, deal_words, is_correct_guess, normalize_guess,
-    random_pick_index, ranking, resolve_blind_pick, resolve_vote, score_round,
-    shuffle_gallery, tally_votes, valid_vote_targets,
+    Deal,
+    Role,
+    RoundOutcome,
+    RuleError,
+    ScoreRules,
+    VoteOutcome,
+    WordCard,
+    apply_scores,
+    choose_spy,
+    deal_words,
+    is_correct_guess,
+    normalize_guess,
+    random_pick_index,
+    ranking,
+    resolve_blind_pick,
+    resolve_vote,
+    score_round,
+    shuffle_gallery,
+    tally_votes,
+    valid_vote_targets,
 )
-
 
 PLAYERS = ("a", "b", "c", "d", "e")
 SPY = "a"
@@ -33,7 +48,7 @@ def test_choose_spy_uniform_approximately_10000_rounds() -> None:
 def test_previous_spy_can_repeat() -> None:
     rng = random.Random(42)
     repeats = [choose_spy(PLAYERS, rng) for _ in range(200)]
-    assert any(a == b for a, b in zip(repeats, repeats[1:]))
+    assert any(a == b for a, b in zip(repeats, repeats[1:], strict=False))
 
 
 def test_choose_spy_rejects_invalid_roster() -> None:

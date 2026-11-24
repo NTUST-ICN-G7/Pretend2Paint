@@ -4,7 +4,13 @@ import json
 
 import pytest
 
-from pretend2paint.core.part_b import GameConfig, Phase, RuleError, ScoreRules, default_phase_seconds
+from pretend2paint.core.part_b import (
+    GameConfig,
+    Phase,
+    RuleError,
+    ScoreRules,
+    default_phase_seconds,
+)
 
 
 def test_default_settings_current_contract() -> None:

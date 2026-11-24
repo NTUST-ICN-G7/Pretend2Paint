@@ -5,9 +5,21 @@ from __future__ import annotations
 import random
 
 from pretend2paint.core.part_b import (
-    GameConfig, Role, RoundOutcome, WordBank, apply_scores, choose_spy,
-    deal_words, is_correct_guess, ranking, resolve_blind_pick, resolve_vote,
-    score_round, shuffle_gallery, tally_votes, valid_vote_targets,
+    GameConfig,
+    Role,
+    RoundOutcome,
+    WordBank,
+    apply_scores,
+    choose_spy,
+    deal_words,
+    is_correct_guess,
+    ranking,
+    resolve_blind_pick,
+    resolve_vote,
+    score_round,
+    shuffle_gallery,
+    tally_votes,
+    valid_vote_targets,
 )
 
 

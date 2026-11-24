@@ -1,17 +1,35 @@
 """v1.2 rules: real anonymous ballots, limited reviews and void attempts."""
+
 from __future__ import annotations
 
 import json
 import random
 from collections import Counter
+
 import pytest
 
 from pretend2paint.core.part_b import (
-    RuleError, RoundProgress, RoundStatus, VoteStatus, WordCard, is_correct_guess,
-    ScoreRules, GameConfig, choose_spy, build_anonymity_map, decode_public_votes,
-    PublicDrawing, AuthorRecord, ReviewerRecord, ModerationLedger, review_round,
-    review_vote_quota, review_threshold, settle_round, RoundOutcome,
-    tally_votes, resolve_vote, score_round, apply_scores,
+    AuthorRecord,
+    GameConfig,
+    ModerationLedger,
+    PublicDrawing,
+    ReviewerRecord,
+    RoundOutcome,
+    RoundProgress,
+    RoundStatus,
+    RuleError,
+    ScoreRules,
+    VoteStatus,
+    build_anonymity_map,
+    choose_spy,
+    decode_public_votes,
+    resolve_vote,
+    review_round,
+    review_threshold,
+    review_vote_quota,
+    score_round,
+    settle_round,
+    tally_votes,
 )
 
 PEOPLE=("p1","p2","p3","p4","p5")
@@ -124,7 +142,7 @@ def test_spy_review_packet_rejected():
 def test_reviewer_failures_punish_separately_from_author_violations():
     ledger=ModerationLedger()
     penalties=[]
-    for i in range(4):
+    for _ in range(4):
         r=review({'p2':['drawing1']},ledger)
         penalties.append(r.penalty_delta['p2'])
         ledger=r.ledger

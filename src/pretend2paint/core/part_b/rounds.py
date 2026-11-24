@@ -1,8 +1,8 @@
 """Round accounting; void reference violations never consume a completed round."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Mapping
 
 from .config import ScoreRules
 from .moderation import ReviewResolution
@@ -22,7 +22,7 @@ class RoundProgress:
         if any(type(x) is not int for x in values) or not 1 <= self.target_rounds <= 100 or not 0 <= self.completed_rounds <= self.attempts_settled <= self.attempts_started or self.attempts_started-self.attempts_settled > 1 or self.completed_rounds > self.target_rounds:
             raise RuleError("Invalid RoundProgress counters")
 
-    def begin_attempt(self) -> "RoundProgress":
+    def begin_attempt(self) -> RoundProgress:
         if self.attempts_started != self.attempts_settled or self.completed_rounds >= self.target_rounds:
             raise RuleError("Cannot begin: unfinished attempt or target reached")
         return replace(self,attempts_started=self.attempts_started+1)
