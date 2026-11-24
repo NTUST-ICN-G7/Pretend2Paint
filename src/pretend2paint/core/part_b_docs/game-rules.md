@@ -1,10 +1,14 @@
-# Game Rules v1.2.0 / 遊戲規則 v1.2.0
+# Candidate Game Rules v1.2.0 / 候選遊戲規則 v1.2.0
+
+> **Status:** This document describes the existing v1.2 candidate, not approved gameplay. Only the referee architecture is approved by [ADR 0007](../../../../docs/decisions/0007-in-process-referee.md). All candidate gameplay rules below remain subject to team review; the [team game rules](../../../../docs/game-rules.md) and ADR 0005 take precedence.
+>
+> **狀態：** 本文件描述既有 v1.2 候選版，並非正式玩法。僅裁判架構經 [ADR 0007](../../../../docs/decisions/0007-in-process-referee.md) 核准；以下候選玩法仍須團隊審查，以[團隊遊戲規則](../../../../docs/game-rules.md)及 ADR 0005 為準。
 
 ## 1. Players and authoritative referee / 玩家與自動裁判
 
-Four to seven human players participate. A separate automatic referee process holds private game state, regardless of who opened the lobby. The referee is not a spectator and never occupies a player slot. A player has an internal stable ID, a separately randomized public player label, and a separately randomized public drawing label each attempt.
+All human players participate, including the room creator, who also manages the lobby. The authoritative referee is a component inside the room creator's game process, on the background asyncio thread with p2p, streaming and core (ADR 0004); it is not a separate process or player slot. The team accepts the local host cheating risk. Four to seven players is a candidate rule, not a team-approved player count. A player has an internal stable ID, a separately randomized public player label, and a separately randomized public drawing label each attempt.
 
-四到七名真人全部參與遊戲。獨立自動裁判程序保存隱藏資訊，不因誰建立大廳而改變。裁判不佔玩家名額。每名玩家的內部 ID 固定，但公開玩家編號與畫作編號每次開局都獨立隨機產生。
+所有真人均參賽，包含另有大廳管理權限的開房者。權威裁判為開房者遊戲程式內的元件，與 p2p、streaming、core 在同一條背景 asyncio 執行緒運作（ADR 0004）；不另設裁判程序或玩家名額。團隊接受房主可在本機作弊的風險。四到七人為候選規則，並非團隊已核准的人數。每名玩家的內部 ID 固定，但公開玩家編號與畫作編號每次開局都獨立隨機產生。
 
 ## 2. Word selection and weighted spy / 出題及加權選角
 

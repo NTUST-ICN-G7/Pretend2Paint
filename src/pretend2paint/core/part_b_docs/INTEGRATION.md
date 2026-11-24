@@ -1,28 +1,34 @@
-# Part B Integration Contract v1.2.0 / B 模組整合契約 v1.2.0
+# Part B Candidate Integration Contract v1.2.0 / B 模組候選整合契約 v1.2.0
 
 **Audience:** A (Flow / Referee Engine), UI, Streaming/Socket. **Source:** teammate `README.pdf` draft plus user-confirmed revisions. **Scope:** implemented rules API only; no real Socket process is included.
 
 **對象：** A（流程／自動裁判）、UI、Streaming／Socket。**依據：** 組員 README PDF 草案與使用者最新決議。**範圍：** 只有規則 API，沒有真正可連線的 Socket 裁判程序。
 
+> **Status:** Candidate implementation reference, not the approved team integration contract. Only the in-process referee architecture below is approved by [ADR 0007](../../../../docs/decisions/0007-in-process-referee.md). Gameplay, phase order, visibility, voting, scoring and cross-module proposals below remain pending; follow the [team rules](../../../../docs/game-rules.md) and ADR 0005 until separately approved.
+>
+> **狀態：** 本文件為候選實作參考，不是團隊正式整合契約。僅下述內嵌式裁判架構經 [ADR 0007](../../../../docs/decisions/0007-in-process-referee.md) 核准。下列玩法、階段順序、可見性、投票、計分及跨模組提案仍待確認；另行核准前依[團隊規則](../../../../docs/game-rules.md)及 ADR 0005。
+
 ## A. Architecture / 架構
 
 ```text
-         Automatic referee process (no human referee / 不佔名額)
-         - authoritative state / server clock / role secrets
-         - Part A event/timer/packet engine (NOT SUPPLIED)
-         - Part B core package (SUPPLIED)
-            |           |          |          |
-          socket      socket     socket     socket
-            |           |          |          |
-        player P1  player P2  player P3  player P4 ...
-        all human participants, including lobby creator
+Room creator's game process / 開房者的遊戲程式 (also a player)
+  UI: main thread / 主執行緒
+  Background asyncio thread / 背景執行緒 (ADR 0004)
+    p2p + streaming + core
+    core referee component: authoritative state / role secrets
+    Part A event/timer engine (NOT SUPPLIED)
+    Part B candidate rules package (SUPPLIED)
+       | existing player network / 既有玩家網路
+       +-- other human player processes / 其他真人玩家程式
+All humans play; no separate referee process or player slot.
+所有真人均參賽；不另設裁判程序或玩家名額。
 ```
 
 Only the referee holds `SecretAnonymityMap`, answer, spy ID, drawing-to-author mapping, all vote identities, and moderation ledger. **Do not serialize the entire secret dataclass to a client.** A player's public number `P#` and a drawing's public number `D#` are independent per-attempt aliases and must not be inferred from one another.
 
 只有裁判持有 `SecretAnonymityMap`、答案、間諜 ID、畫作作者映射、個別選票與審查帳本。**不得把整個私密 dataclass 序列化給玩家端。** 玩家公開 `P#` 與畫作 `D#` 是每次開局各自獨立的別名，不能建立編號相等的假設。
 
-## B. Normative phase flow / 正式階段流程
+## B. Candidate phase flow (not approved for integration) / 候選階段流程（尚未核准整合）
 
 | Phase | Part A responsibilities / A 的責任 | Part B functions / B 函式 |
 |---|---|---|
@@ -37,9 +43,9 @@ Only the referee holds `SecretAnonymityMap`, answer, spy ID, drawing-to-author m
 | REVEAL | Lock results, then show **all** final images incl. flagged to EVERYONE; may now publish authors / 結果鎖定才完整公開所有畫作 | Referee-private reveal policy |
 | ROUND_END | Score normal only if not void; add review penalties; update completed-round history, scoreboard; remove users and stop if <4 / 正常分＋處罰、記完成回合、移出玩家 | `settle_round`, `apply_scores`, `ranking`, `rank_with_ties`, `winners`, `restrict_ledger` |
 
-**Do not use the old `REVEAL` before `VOTING`.** In v1.2 the stage formerly called reveal has been split into `REVIEW` (civilians only), `VOTING` (civilians see full anonymous gallery) and later `REVEAL` (all including spy after locked decision). A's current engine in the original README must be revised.
+**Do not use the old `REVEAL` before `VOTING`.** In v1.2 the stage formerly called reveal has been split into `REVIEW` (civilians only), `VOTING` (civilians see full anonymous gallery) and later `REVEAL` (all including spy after locked decision). This is a candidate-only proposal, not an instruction to revise the approved engine.
 
-**不要在投票前使用舊 `REVEAL` 公開全部畫作。** v1.2 將舊公開階段拆為 `REVIEW`（一般玩家）、`VOTING`（一般玩家看完整匿名畫廊）與最終 `REVEAL`（結果鎖定後所有人可看）。組員原 README 的 A 流程必須改動。
+**不要在投票前使用舊 `REVEAL` 公開全部畫作。** v1.2 將舊公開階段拆為 `REVIEW`（一般玩家）、`VOTING`（一般玩家看完整匿名畫廊）與最終 `REVEAL`（結果鎖定後所有人可看）。此為候選流程提案，不是修改正式 A 流程的指令。
 
 ## C. Data and function contract / 資料與函式契約
 

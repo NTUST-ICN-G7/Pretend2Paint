@@ -23,7 +23,7 @@ Sources:
 | Round handling | Existing phase sequence | VOID, review penalties and suspension |
 | Player and round counts | Further discussion | Four to seven players; five completed rounds by default |
 
-The review also identifies duplicate numbered design documents under `part_b_docs/adr/`. Their consolidation and the reduction of the candidate code to agreed rules remain open. No gameplay proposal is resolved by this status record.
+The duplicate numbered design documents formerly under `part_b_docs/adr/` have been consolidated in [design-notes.md](design-notes.md), with original records preserved in Git history. Reduction of the candidate code to agreed rules remains open. No gameplay proposal is resolved by this status record.
 
 ## Validation evidence
 
