@@ -43,14 +43,14 @@ Run from the project directory; the demo has no network access and needs no extr
 從專案根目錄執行；示範不使用網路、不需要第三方套件。它進行三次開局：第一次因間諜參考畫作違規而作廢，後兩次正常計分。最後只計入兩個有效回合，不是三個。
 
 ```bash
-python -m examples.rules_demo
-python -m pip install 'pytest>=7'
-python -m pytest -q
+uv sync --locked
+uv run python -m pretend2paint.core.part_b.examples.rules_demo
+uv run pytest
 ```
 
-Alternatively install the wheel locally with `python -m pip install undercover_drawing_game_rules-1.2.0-py3-none-any.whl`.
+The commands above are for the integrated repository, which uses Python 3.14 and uv. The demonstration exercises candidate behavior, not a networked game or an approved v2 rules contract.
 
-也可直接使用 `python -m pip install undercover_drawing_game_rules-1.2.0-py3-none-any.whl` 安裝 Wheel 套件。
+上述指令適用於採用 Python 3.14 與 uv 的整合儲存庫。示範僅涵蓋候選行為，不代表多人網路遊戲或新版規則已核准。
 
 ## Candidate behaviors / 候選實作行為（非全組定案）
 
@@ -92,7 +92,7 @@ These numbers are configurable, not empirically proven balanced. A correct civil
 ## Primary public functions / 主要公開 API
 
 ```python
-from core import (
+from pretend2paint.core.part_b import (
     GameConfig,
     ScoreRules,
     WordBank,
@@ -130,6 +130,38 @@ The complete, executable integration-style example is in `examples/rules_demo.py
 
 完整且可執行的整合風格範例請見 `examples/rules_demo.py`；流程組應參考 API 合約整合，而不是只複製局部程式。詳見 `docs/INTEGRATION.md`，其中包含伺服器端必要的安全驗證。
 
+## Word bank interface / 題庫介面
+
+`WordBank.from_records(records: Sequence[Mapping[str, object]]) -> WordBank` accepts decoded records with string `answer` and `hint`, and optional `aliases` (a list or tuple of strings). It validates the data and creates immutable cards without file I/O. Runtime code should read the resource and supply decoded records. The older `from_json(path)` and `default()` loaders are retained temporarily for compatibility; they still perform file I/O.
+
+`WordBank.from_records(records: Sequence[Mapping[str, object]]) -> WordBank` 接收已解析的題庫資料，每筆含字串型別的答案、提示，以及選填的別名字串串列或 tuple。此方法驗證資料並建立不可變題卡，不讀寫檔案。正式執行環境應由外部載入資源並傳入資料；舊的 `from_json(path)` 與 `default()` 暫留相容性，仍會讀檔。
+
+`draw(rng: random.Random, used: set[str], *, last_answer: str | None = None) -> WordCard` updates the caller-owned set only after a successful draw. Within a cycle each answer is used once. On exhaustion the set is reset; passing the previous answer prevents a repeat across the boundary when there are at least two cards. The one-card case necessarily repeats. Omitting the keyword preserves the old behavior. For the v5.2 candidate integration, the server owns both values for the match, records issued answers and does not roll them back on void attempts.
+
+`draw(rng: random.Random, used: set[str], *, last_answer: str | None = None) -> WordCard` 在成功抽題後才更新呼叫者管理的集合。同一週期每題只抽一次；題庫耗盡會重置集合，傳入上一題且題庫至少有兩題時可避免跨週期連續重複。單題題庫必然重複，省略參數則保留舊行為。v5.2 候選整合要求伺服器管理這兩個場次狀態，已發題目不因作廢回滾。
+
+```python
+import random
+
+from pretend2paint.core.part_b import WordBank
+
+records = [
+    {"answer": "apple", "hint": "fruit"},
+    {"answer": "pear", "hint": "food"},
+]
+bank = WordBank.from_records(records)
+rng = random.Random(42)
+used: set[str] = set()
+last_answer: str | None = None
+for _ in range(4):
+    card = bank.draw(rng, used, last_answer=last_answer)
+    last_answer = card.answer
+```
+
+This is an isolated example, not the server's event or packet implementation. The current integration proposal is tracked in [PR #14](https://github.com/NTUST-ICN-G7/Pretend2Paint/pull/14).
+
+以上為獨立範例，並非伺服器事件與封包實作。現行整合提案見 PR #14。
+
 ## Important limits / 重要限制
 
 - **No Socket server, client, UI, network timer, retry transport or reconnection code is implemented by Part B.** / **Part B 不含 Socket 伺服器、客戶端、UI、真實計時器、傳輸重送或斷線重連程式。**
@@ -137,7 +169,7 @@ The complete, executable integration-style example is in `examples/rules_demo.py
 - Automatic referee must not send `SecretAnonymityMap`, private roles, reference author, raw review votes, answer, or final rejected drawings to unauthorized clients. / 裁判不得提前傳送完整身分對應、秘密角色、參考作者、原始審查票、答案或尚不可公開的圖。
 - Review suspension is deferred if enforcing it would make the fixed civilian review threshold unreachable. / 如果暫停審查權導致原本的門檻無法達成，則延期執行。
 - Confirmed violations and reviewer failure penalties are preserved when a reference violation voids an attempt. / 參考圖違規導致回合作廢時，作者與審查者的處罰仍保留。
-- The older v1.1 API contract changed in `Phase`, score defaults, spy ballot validation, tie semantics and review effects; Part A **must** adapt. / v1.1 的階段、分數預設、間諜投票、平票判定及審查流程已變動；A 模組**必須**同步更新。
+- Candidate phase, scoring, voting and review differences are not approved integration requirements. Follow the team review and approved shared contracts. / 候選版的階段、計分、投票及審查差異並非已核准的整合要求，須依團隊審查及核准的共用契約。
 
 ## Documentation / 文件
 

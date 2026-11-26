@@ -31,6 +31,14 @@ The duplicate numbered design documents formerly under `part_b_docs/adr/` have b
 - Integrated repair baseline: `26dde8980182f849a36fec4c4228f7a70e81d875`.
 - [PR #12 validation CI](https://github.com/NTUST-ICN-G7/Pretend2Paint/actions/runs/45324864364): success.
 - [PR #5 CI after fast-forward integration](https://github.com/NTUST-ICN-G7/Pretend2Paint/actions/runs/45336991528): Ruff lint, Ruff format (85 files), layered imports, pytest (211 passed), and agent workspace checks succeeded.
+- [PR #13 foundation validation](https://github.com/NTUST-ICN-G7/Pretend2Paint/actions/runs/45761101057): success; includes the exact main snapshot and record-based word bank changes.
+- [PR #5 foundation integration CI](https://github.com/NTUST-ICN-G7/Pretend2Paint/actions/runs/45761326991): success on `9ee0b0e0e5f319b4c745a737a782445fbc59b927`; 83 files already formatted, 248 tests passed, all required checks succeeded.
 - Real multiplayer integration: not tested by the recorded CI evidence.
+
+## Foundation follow-up (2026-11-26)
+
+The record-based word bank and optional `last_answer` parameter are implemented and tested. See [README.md](README.md) for the current interface, caller responsibility and temporary legacy-loader compatibility. The common Role migration and reduction of unapproved candidate behavior remain open.
+
+[PR #14](https://github.com/NTUST-ICN-G7/Pretend2Paint/pull/14) proposes Core design v5.2 and ADR 0008. Its review revisions do not constitute leader approval or an implementation of those rules.
 
 The repair baseline includes the approved authority-model documents and CI fixes. No shared types, packet formats, or workflow settings were changed by the CI repair. PR #5 has not been merged into main.
