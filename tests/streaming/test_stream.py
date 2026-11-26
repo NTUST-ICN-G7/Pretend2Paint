@@ -411,6 +411,106 @@ class TestManagerSend(unittest.TestCase):
 
 
 class TestEndToEnd(unittest.TestCase):
+    def test_round_result_reaches_player_handler(self):
+        pool = MockConnectionPool()
+        host, player = StreamManager(pool), StreamManager(MockConnectionPool())
+        got = []
+        player.register_handler(
+            PacketType.ROUND_RESULT, lambda peer, data: got.append((peer, data))
+        )
+        scores = {"alice": 8, "bob": -3}
+        drawings = [{"drawing_index": 1, "author_name": "Bob", "votes": 2, "marked": False}]
+        violations = [{"player_id": "eve", "name": "Eve", "strikes": 2, "penalty": -15}]
+
+        host.broadcast_round_result(
+            "bob",
+            "西瓜",
+            scores,
+            outcome="caught",
+            hint="兩個字的水果",
+            spy_guess="哈密瓜",
+            guess_correct=False,
+            drawings=drawings,
+            violations=violations,
+            removed_players=["eve"],
+        )
+        host.broadcast_round_result(
+            "bob", "西瓜", scores, outcome="escaped", hint="兩個字的水果", drawings=[]
+        )
+        host.broadcast_round_result(
+            None, None, scores, outcome="void", violations=violations, removed_players=["eve"]
+        )
+        host.broadcast_round_result("bob", "西瓜", scores)
+
+        self.assertEqual(pool.sent, [])
+        for data in pool.broadcasted:
+            player.handle_incoming_data("host", data)
+        caught = {
+            "spy": "bob",
+            "answer": "西瓜",
+            "scores": scores,
+            "outcome": "caught",
+            "hint": "兩個字的水果",
+            "spy_guess": "哈密瓜",
+            "guess_correct": False,
+            "drawings": drawings,
+            "violations": violations,
+            "removed_players": ["eve"],
+        }
+        self.assertEqual(
+            got,
+            [
+                ("host", caught),
+                (
+                    "host",
+                    caught
+                    | {
+                        "outcome": "escaped",
+                        "spy_guess": None,
+                        "guess_correct": None,
+                        "drawings": [],
+                        "violations": [],
+                        "removed_players": [],
+                    },
+                ),
+                (
+                    "host",
+                    {
+                        "outcome": "void",
+                        "scores": scores,
+                        "violations": violations,
+                        "removed_players": ["eve"],
+                    },
+                ),
+                ("host", {"spy": "bob", "answer": "西瓜", "scores": scores}),
+            ],
+        )
+
+    def test_round_result_rejects_invalid_extensions(self):
+        pool = MockConnectionPool()
+        manager = StreamManager(pool)
+        got = []
+        manager.register_handler(PacketType.ROUND_RESULT, lambda peer, data: got.append(data))
+        with self.assertRaises(ValueError):
+            manager.broadcast_round_result("bob", "西瓜", {}, outcome="void")
+        with self.assertRaises(ValueError):
+            manager.broadcast_round_result("bob", "西瓜", {}, outcome="unknown")
+        with self.assertRaises(ValueError):
+            manager.broadcast_round_result("bob", "西瓜", {}, hint="水果")
+        self.assertEqual(pool.broadcasted, [])
+
+        payload = {"outcome": "void", "scores": {}, "violations": [], "removed_players": []}
+        for malformed in (
+            payload | {"outcome": "unknown"},
+            payload | {"spy": "bob"},
+            payload | {"removed_players": None},
+            payload | {"outcome": "tie"},
+        ):
+            manager.handle_incoming_data(
+                "host", StreamPacket.encode(PacketType.ROUND_RESULT, malformed)
+            )
+        self.assertEqual(got, [])
+
     def test_host_deals_word_and_player_receives_it(self):
         """房主送出的 bytes 餵進玩家的 StreamManager，玩家的 handler 會收到。"""
         host_pool, player_pool = MockConnectionPool(), MockConnectionPool()

@@ -144,10 +144,49 @@ class StreamManager:
         self._broadcast(PacketType.ROUND_STATE_SYNC, {"state": Phase(state).value})
 
     def broadcast_round_result(
-        self, spy: PlayerId, answer: str, scores: dict[PlayerId, int]
+        self,
+        spy: PlayerId | None,
+        answer: str | None,
+        scores: dict[PlayerId, int],
+        *,
+        outcome: str | None = None,
+        hint: str | None = None,
+        spy_guess: str | None = None,
+        guess_correct: bool | None = None,
+        drawings: list[dict] | None = None,
+        violations: list[dict] | None = None,
+        removed_players: list[PlayerId] | None = None,
     ) -> None:
-        """房主 → 所有人：公布間諜、答案、得分（答案只有此時才公開）。"""
-        payload = {"spy": spy, "answer": answer, "scores": scores}
+        """房主在回合結算時廣播。作廢時傳入 ``spy=None`` 和 ``answer=None``。"""
+        payload: dict = {"scores": scores}
+        details = {
+            "spy": spy,
+            "answer": answer,
+            "hint": hint,
+            "spy_guess": spy_guess,
+            "guess_correct": guess_correct,
+            "drawings": drawings,
+        }
+        if outcome is not None:
+            payload.update(
+                outcome=outcome,
+                violations=[] if violations is None else violations,
+                removed_players=[] if removed_players is None else removed_players,
+            )
+        else:
+            if violations is not None:
+                payload["violations"] = violations
+            if removed_players is not None:
+                payload["removed_players"] = removed_players
+
+        if outcome is None or outcome == "void":
+            payload.update({key: value for key, value in details.items() if value is not None})
+        else:
+            payload.update(details)
+
+        error = payload_error(PacketType.ROUND_RESULT, payload)
+        if error:
+            raise ValueError(error)
         self._broadcast(PacketType.ROUND_RESULT, payload)
 
     # ------------------------------------------------------------------ 內部

@@ -55,16 +55,54 @@ REQUIRED_FIELDS: dict[int, tuple[str, ...]] = {
     PacketType.SPY_REFERENCE: ("image",),
     PacketType.VOTE: ("target",),
     PacketType.SPY_GUESS: ("guess",),
-    PacketType.ROUND_RESULT: ("spy", "answer", "scores"),
+    PacketType.ROUND_RESULT: ("scores",),
 }
 """各封包 payload 必備的欄位；收到缺欄位的封包會被丟棄，不會交給上層。"""
 
+ROUND_RESULT_OUTCOMES = ("escaped", "caught", "tie", "void")
+ROUND_RESULT_DETAILS = ("spy", "answer", "hint", "spy_guess", "guess_correct", "drawings")
+ROUND_RESULT_PENALTIES = ("violations", "removed_players")
+
+
+def _round_result_error(payload: dict) -> str | None:
+    if "outcome" not in payload:
+        if not all(key in payload for key in ("spy", "answer")):
+            return "legacy round result requires spy and answer"
+        if any(key in payload for key in ROUND_RESULT_DETAILS[2:] + ROUND_RESULT_PENALTIES):
+            return "extended round result requires outcome"
+        return None
+
+    outcome = payload["outcome"]
+    if outcome not in ROUND_RESULT_OUTCOMES:
+        return "unknown round result outcome"
+    if not all(isinstance(payload.get(key), list) for key in ROUND_RESULT_PENALTIES):
+        return "round result requires violations and removed_players arrays"
+    if outcome == "void":
+        if payload.keys() - {"outcome", "scores", *ROUND_RESULT_PENALTIES}:
+            return "void round result can only include scores and penalty details"
+        return None
+
+    if not all(key in payload for key in ROUND_RESULT_DETAILS):
+        return "missing regular round result details"
+    if not all(isinstance(payload[key], str) for key in ("spy", "answer", "hint")):
+        return "spy, answer and hint must be strings"
+    if not isinstance(payload["drawings"], list):
+        return "drawings must be an array"
+    if payload["spy_guess"] is not None and not isinstance(payload["spy_guess"], str):
+        return "spy_guess must be a string or null"
+    if payload["guess_correct"] is not None and not isinstance(payload["guess_correct"], bool):
+        return "guess_correct must be a boolean or null"
+    return None
+
 
 def payload_error(packet_type: int, payload: dict) -> str | None:
-    """檢查 payload 是否合法；合法回傳 ``None``，否則回傳原因。送出與接收兩端都會呼叫。"""
+    """檢查 payload 是否合法；合法回傳 ``None``，否則回傳原因。"""
     missing = [k for k in REQUIRED_FIELDS.get(packet_type, ()) if k not in payload]
     if missing:
         return f"missing fields {missing}"
+
+    if packet_type == PacketType.ROUND_RESULT:
+        return _round_result_error(payload)
 
     if packet_type == PacketType.ROUND_STATE_SYNC:
         try:
