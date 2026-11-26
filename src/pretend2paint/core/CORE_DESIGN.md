@@ -1,4 +1,6 @@
-# Core 共用設計文件 v5.1（A＋B）
+# Core 共用設計文件 v5.2（A＋B）
+
+> v5.2 變更（回應 B 對 #14 的審查）：ADR 改為 0008 並依賴 0007；`WordBank.draw` 加 `last_answer`；開房者斷線顯示最後快照；`ReviewPlan` 驗證補強；機密規則分三類；提交的原子性與事件順序。
 
 > v5.1 變更（回應 B 的第二輪確認）：規則加上核准狀態、不可變性要求、`PlayerView.vote_state`、`ReviewPlan` 保存 players / spy、題庫使用紀錄不隨作廢回滾。
 
@@ -123,7 +125,11 @@ DRAWING、SPY_ACTION 另加 `submit_grace_seconds = 2`。
 | SPY_GUESS | 等待畫面 | 沒被判違規的畫 | 單播給間諜 |
 | REVEAL | 全部公開：作者、間諜、答案、違規、票數 | 同左 | 廣播 |
 
-伺服器以外的任何電腦，在 REVEAL 之前**不可**收到：別人的角色、答案（間諜）、作者對應、別人的票、未授權的畫。
+機密規則分三類（ADR 0008，部分取代 ADR 0005）：
+
+1. **提交前，只能單播給本人**：答案、提示、角色。作者對應、別人的角色、選票、檢舉只存在伺服器。
+2. **提交前的畫作例外（限定接收者、不含作者、不可廣播）**：`SPY_REFERENCE`→間諜；`REVIEW_ITEM`、`GALLERY`→逐一單播給一般玩家；`SPY_GALLERY`→間諜。
+3. **提交後的公開例外**：結算提交完成後才可廣播 `REVEAL_ALL`（答案、提示、間諜、作者、違規、得票數）。
 
 ---
 
@@ -248,7 +254,12 @@ class WordBank:
         ...
         # 【改】取代 from_json / default：core 不讀檔，runtime 用 importlib.resources 讀 words.json 後傳進來
 
-    def draw(self, rng: random.Random, used: set[str]) -> WordCard: ...
+    def draw(
+        self, rng: random.Random, used: set[str], *, last_answer: str | None = None
+    ) -> WordCard:
+        ...
+        # B 已實作。題庫用完重置時排除 last_answer，避免跨週期連續重複（單題題庫無法避免）
+        # A 保存上一次「已發出」的答案，下次抽題傳入；作廢局不回滾
 
 
 def choose_spy(
@@ -393,6 +404,7 @@ def review_round(
     # votes：只能來自 plan.eligible，每人 ≤ plan.quota（A 收的時候先擋，B 再驗一次）
     # B 驗證一致性：eligible ∪ suspended ＝ players − {spy}、兩者不重疊；
     #               drawing_authors 的鍵 ＝ set(plan.order)、作者 ⊆ players；不符丟 RuleError
+    #               plan.attempt_id 與目前這局一致；order 沒有重複；每位玩家恰好對應一張畫
 
 
 def restrict_ledger(ledger: ModerationLedger, active: Collection[PlayerId]) -> ModerationLedger: ...
@@ -536,12 +548,14 @@ history: dict[PlayerId, int] = {}
 ledger = ModerationLedger()
 board = {p: 0 for p in players}
 used: set[str] = set()
+last_answer: str | None = None
 
 while not progress.finished and len(players) >= config.min_players:
     # DEAL
     progress = progress.begin_attempt()
     attempt = progress.current_attempt_id
-    card = bank.draw(rng, used)
+    card = bank.draw(rng, used, last_answer=last_answer)
+    last_answer = card.answer  # 發出即記錄，作廢不回滾
     spy = choose_spy(players, rng, history, config.spy_weight_exponent)
     deals = deal_words(players, spy, card)  # 逐一單播
     civilians = [p for p in players if p != spy]
@@ -833,6 +847,7 @@ class PlayerView:
     last_round: RoundSummary | None  # ROUND_END：狀態、各人加減分、被踢出的人
     game_over: GameOverReason | None
     ranking: tuple[tuple[PlayerId, int, int], ...]  # 只含在場玩家
+    snapshot_round: int | None  # 分數快照截至第幾回合；開房者斷線時顯示，None＝尚無分數
     departed: tuple[tuple[PlayerId, int, str], ...]  # 已離開 / 被踢出：(玩家, 分數, 原因)
 ```
 
@@ -963,9 +978,9 @@ BLANK_DRAWING = Drawing()
 | R5 | 平票（有人投）時間諜要猜；全部棄票間諜直接逃脫 | A 提案，**待 team leader 核准** |
 | R6 | 斷線作廢局連處罰也不算 | A 提案，**待 team leader 核准** |
 | R7 | 4～10 人、審查額度公式 ceil((N−3)/2) | A 提案，**待 team leader 核准** |
-| R8 | 新增 REVIEW 會讓一般玩家在 REVEAL 前看到畫作，和 ADR 0005「REVEAL 前畫作只給房主」衝突 | 和 ADR 0003 一起提修訂（write-adr），team leader 核准 |
+| R8 | 新增 REVIEW 會讓一般玩家在 REVEAL 前看到畫作，和 ADR 0005「REVEAL 前畫作只給房主」衝突 | ADR 0008 部分取代 0005（PR #14），team leader 核准 |
 
-**核准流程：** A 用 `write-adr` 把第 1 節與 R5～R8 寫成一份 ADR（同時修訂 0003、0005），發 PR 給 team leader。核准前，B 先做不受影響的修改（改用 common 型別、修 ruff、ReviewPlan、拆檔），規則數值相關的測試等核准後再改。
+**核准流程：** 第 1 節與 R5～R8 已寫成 ADR 0008（依賴 #5 的 ADR 0007，部分取代 0005），在 PR #14 等 team leader 核准。核准前，B 先做不受影響的修改（改用 common 型別、修 ruff、ReviewPlan、拆檔），規則數值相關的測試等核准後再改。
 
 ---
 
@@ -992,11 +1007,20 @@ DEAL ─ DRAWING ─ SPY_ACTION ─ REVIEW ─ VOTING ─ SPY_GUESS ─┤提交
 - **提交前斷線**：呼叫 `settle_void_disconnect(ledger=committed ledger)`，再把結果寫入 committed（只會增加 `attempts_settled`）。本局審查處罰隨 pending 一起丟掉。
 - **提交後斷線**：不改本局結果；斷線者在下一局 DEAL 前移除，`restrict_ledger` 與 history 同步清掉。
 - 同一局只能提交一次；`RoundProgress` 會擋重複結算。
+- **原子性與順序**：GameServer 在單一 asyncio 執行緒依事件抵達順序逐一處理（ADR 0004）。VOID_REFERENCE、VOID_DISCONNECT 與正常結算互相競爭時，**先被處理的事件完成提交**；之後同一局的事件一律忽略。
+- **畫面順序**：內部提交在 REVEAL **之前**；玩家看到的畫面順序是 REVEAL → ROUND_END。
+
+### 11.2 開房者斷線時玩家端的分數
+
+- `PlayerEngine` 保存**最後一次收到的** `ROUND_RESULT`（含累計分數與 `completed_rounds`）作為快照。
+- 收到 `PeerLeft(server)`（心跳逾時偵測，有數秒延遲）→ `GameOver(HOST_LEFT)`，`PlayerView` 顯示快照與「截至第 N 回合」。
+- 若伺服器在提交後、廣播前當機，最新一局無法取得，以快照為準。
+- 從未收到任何 `ROUND_RESULT` → 顯示「遊戲中斷，尚無分數」（`ranking` 為空、`snapshot_round` 為 None）。
 - 作廢局（VOID_DISCONNECT、VOID_REFERENCE）會增加 `attempts_settled`、不增加 `completed_rounds`，所以下一局的 `attempt_id` 一定是新的，不會重複。
 
-### 11.1 例外：題庫使用紀錄不回滾
+### 11.3 例外：題庫使用紀錄不回滾
 
 - 題目在 DEAL 發出去的那一刻就加入 `used`，**作廢也不移除**（玩家已經看過題目，補局不能再出同一題）。
-- 題庫全部用完時：清空 `used` 重新開始，但**排除剛剛出過的那一題**，避免連續兩局同一題。
+- 題庫全部用完時：清空 `used` 重新開始，但**排除剛剛出過的那一題**（`draw(..., last_answer=...)`），避免連續兩局同一題。A 保存 `last_answer`。
 - 題庫至少要比「最多局數」多：`len(cards) > target_rounds + 預期作廢局`；B 的 `GameConfig.validate()` 可加警告（59 題 > 5 回合，目前足夠）。
 
