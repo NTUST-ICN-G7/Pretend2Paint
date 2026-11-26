@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import random
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -65,8 +65,28 @@ class WordBank:
         return len(self._cards)
 
     @classmethod
+    def from_records(cls, records: Sequence[Mapping[str, object]]) -> WordBank:
+        """Validate decoded question records without file I/O or retaining mutable input."""
+        if isinstance(records, (str, bytes)) or not isinstance(records, Sequence):
+            raise RuleError("Word bank records must be a sequence")
+        cards: list[WordCard] = []
+        for index, item in enumerate(records):
+            if not isinstance(item, Mapping) or set(item) - {"answer", "hint", "aliases"}:
+                raise RuleError(f"Invalid card object at index {index}")
+            answer, hint = item.get("answer"), item.get("hint")
+            if not isinstance(answer, str) or not isinstance(hint, str):
+                raise RuleError(f"Card {index} requires string answer and hint")
+            aliases = item.get("aliases", [])
+            if not isinstance(aliases, (list, tuple)) or any(
+                not isinstance(alias, str) for alias in aliases
+            ):
+                raise RuleError(f"aliases at index {index} must be an array of strings")
+            cards.append(WordCard(answer=answer, hint=hint, aliases=tuple(aliases)))
+        return cls(cards)
+
+    @classmethod
     def from_json(cls, path: Path) -> WordBank:
-        """Read a local JSON list of {answer, hint, aliases?}."""
+        """Legacy file loader; runtime integrations should inject decoded records."""
         try:
             with Path(path).open("r", encoding="utf-8") as stream:
                 raw = json.load(stream)
@@ -74,42 +94,41 @@ class WordBank:
             raise RuleError(f"Cannot read word bank: {path}") from exc
         if not isinstance(raw, list):
             raise RuleError("Word bank JSON root must be a list")
-        cards: list[WordCard] = []
-        for index, item in enumerate(raw):
-            if not isinstance(item, dict) or set(item) - {"answer", "hint", "aliases"}:
-                raise RuleError(f"Invalid card object at index {index}")
-            aliases = item.get("aliases", [])
-            if not isinstance(aliases, list):
-                raise RuleError(f"aliases at index {index} must be an array")
-            cards.append(
-                WordCard(
-                    answer=item.get("answer"),
-                    hint=item.get("hint"),
-                    aliases=tuple(aliases),
-                )
-            )
-        return cls(cards)
+        return cls.from_records(raw)
 
     @classmethod
     def default(cls) -> WordBank:
         """Load the bundled core/words.json (available when installed as a package)."""
         return cls.from_json(Path(__file__).with_name("words.json"))
 
-    def draw(self, rng: random.Random, used: set[str]) -> WordCard:
-        """Choose an unused card, record it in `used`, reset at exhaustion.
+    def draw(
+        self, rng: random.Random, used: set[str], *, last_answer: str | None = None
+    ) -> WordCard:
+        """Draw without repetition within a cycle, optionally avoiding the prior answer.
 
-        The only side effect is updating the caller-provided `used` set. This
-        ensures every question appears once per cycle; the host keeps that set.
+        The caller owns the per-match used set and the last issued answer. Pass
+        last_answer to avoid a repeat across cycle boundaries when possible.
+        A one-card bank must repeat. Omitting last_answer preserves legacy behavior.
+        The used set is updated only after a successful random choice.
         """
         if not isinstance(used, set):
             raise RuleError("used must be a mutable set of answers")
+        if last_answer is not None and (
+            not isinstance(last_answer, str) or not _normalized(last_answer)
+        ):
+            raise RuleError("last_answer must be a nonempty string or None")
         normalized_used = {_normalized(item) for item in used if isinstance(item, str)}
         available = [
             card for card in self._cards if _normalized(card.answer) not in normalized_used
         ]
-        if not available:
-            used.clear()
+        exhausted = not available
+        if exhausted:
             available = list(self._cards)
+            if last_answer is not None and len(available) > 1:
+                previous = _normalized(last_answer)
+                available = [card for card in available if _normalized(card.answer) != previous]
         card = rng.choice(available)
+        if exhausted:
+            used.clear()
         used.add(card.answer)
         return card
