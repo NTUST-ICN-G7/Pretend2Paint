@@ -1013,7 +1013,7 @@ DEAL ─ DRAWING ─ SPY_ACTION ─ REVIEW ─ VOTING ─ SPY_GUESS ─┤提交
 ### 11.2 開房者斷線時玩家端的分數
 
 - `PlayerEngine` 保存**最後一次收到的** `ROUND_RESULT`（含累計分數與 `completed_rounds`）作為快照。
-- 收到 `PeerLeft(server)`（心跳逾時偵測，有數秒延遲）→ `GameOver(HOST_LEFT)`，`PlayerView` 顯示快照與「截至第 N 回合」。
+- 收到 `PeerLeft(server)`（由 p2p 心跳逾時偵測；心跳與逾時秒數為預期需求，待 P2P 在 #8 確認）→ `GameOver(HOST_LEFT)`，`PlayerView` 顯示快照與「截至第 N 回合」。
 - 若伺服器在提交後、廣播前當機，最新一局無法取得，以快照為準。
 - 從未收到任何 `ROUND_RESULT` → 顯示「遊戲中斷，尚無分數」（`ranking` 為空、`snapshot_round` 為 None）。
 - 作廢局（VOID_DISCONNECT、VOID_REFERENCE）會增加 `attempts_settled`、不增加 `completed_rounds`，所以下一局的 `attempt_id` 一定是新的，不會重複。
@@ -1023,4 +1023,3 @@ DEAL ─ DRAWING ─ SPY_ACTION ─ REVIEW ─ VOTING ─ SPY_GUESS ─┤提交
 - 題目在 DEAL 發出去的那一刻就加入 `used`，**作廢也不移除**（玩家已經看過題目，補局不能再出同一題）。
 - 題庫全部用完時：清空 `used` 重新開始，但**排除剛剛出過的那一題**（`draw(..., last_answer=...)`），避免連續兩局同一題。A 保存 `last_answer`。
 - 題庫至少要比「最多局數」多：`len(cards) > target_rounds + 預期作廢局`；B 的 `GameConfig.validate()` 可加警告（59 題 > 5 回合，目前足夠）。
-
