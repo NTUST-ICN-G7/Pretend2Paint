@@ -29,7 +29,7 @@
 ### 技術
 
 - **Python 3.14**，用 **uv** 管理環境
-- UI 框架：**尚未決定**
+- UI 框架：**tkinter**（Python 內建，見 [ADR 0006](decisions/0006-ui-framework.md)）
 
 ### 分工
 
@@ -235,7 +235,7 @@ uv sync
 - 🚫 **不要用 `pip install`。** 需要新套件先在群組提出，由 team leader 決定
 - **分層規則**：`ui → core → streaming → p2p → common`，只能由左往右 import（CI 會自動檢查）；下層要通知上層用 callback
 - `core` 只放純邏輯，不碰網路、不碰畫面
-- **UI 組**：框架還沒定，先不要自己選框架或安裝 GUI 套件，可以先做畫面流程與資料結構
+- **UI 組**：框架用 tkinter（Python 內建），不用也不要另外安裝 GUI 套件
 
 ### 遊戲安全（很重要）
 
@@ -279,7 +279,7 @@ uv sync
 
 ### UI（錢呈恩、李愷哲、石凡可、簡國行）
 
-- 評估 tkinter / pygame-ce / PyQt6，比較表在 [`docs/decisions/0006-ui-framework.md`](decisions/0006-ui-framework.md)，討論完告訴 team leader
+- ~~評估 tkinter / pygame-ce / PyQt6~~ → 已決定使用 tkinter（[`docs/decisions/0006-ui-framework.md`](decisions/0006-ui-framework.md)）
 - 列出需要的畫面清單
 
 ---
