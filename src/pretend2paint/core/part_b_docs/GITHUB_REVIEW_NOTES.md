@@ -16,7 +16,7 @@ Sources:
 | Topic | Existing team design | Candidate implementation |
 | --- | --- | --- |
 | Phase | Shared lowercase values; REVEAL precedes VOTING | Private uppercase values; REVIEW and later REVEAL |
-| Role | Shared lowercase values | Private uppercase values |
+| Role | Shared lowercase values | Re-exports shared Role; lowercase serialization (migration pending CI validation) |
 | Reference | Manual blind pick | Automatic selection in candidate flow |
 | Voting | All players vote | Civilian-only voting |
 | Scoring | Spy score direction specified; civilian scores and ties pending | Configurable numeric scores and tie behavior |
@@ -37,7 +37,7 @@ The duplicate numbered design documents formerly under `part_b_docs/adr/` have b
 
 ## Foundation follow-up (2026-11-26)
 
-The record-based word bank and optional `last_answer` parameter are implemented and tested. See [README.md](README.md) for the current interface, caller responsibility and temporary legacy-loader compatibility. The common Role migration and reduction of unapproved candidate behavior remain open.
+The record-based word bank and optional `last_answer` parameter are implemented and tested. See [README.md](README.md) for the current interface, caller responsibility and temporary legacy-loader compatibility. The Role migration reuses the existing common enum and preserves both Part B import paths; wire values are now lowercase. Its new regression tests require CI validation. Phase migration and reduction of unapproved candidate behavior remain open.
 
 [PR #14](https://github.com/NTUST-ICN-G7/Pretend2Paint/pull/14) proposes Core design v5.2 and ADR 0008. Its review revisions do not constitute leader approval or an implementation of those rules.
 

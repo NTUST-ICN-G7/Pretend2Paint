@@ -15,7 +15,7 @@ This package is a network-independent Python 3.14 game-rules library. It handles
 ```text
 core/
   __init__.py     public imports / 對外匯入
-  types.py        Phase, Role, RoundStatus, VoteStatus
+  types.py        candidate Phase, shared Role re-export, RoundStatus, VoteStatus
   config.py       GameConfig, ScoreRules, phase seconds, JSON serialization
   words.py        WordCard, WordBank
   words.json      59 built-in questions / 59 題

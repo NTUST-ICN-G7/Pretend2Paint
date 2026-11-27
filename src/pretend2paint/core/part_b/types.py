@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from pretend2paint.common.types import Role as Role
+
 type PlayerId = str
 type DrawingId = str
 
@@ -22,11 +24,6 @@ class Phase(StrEnum):
     SPY_GUESS = "SPY_GUESS"
     REVEAL = "REVEAL"  # FULL reveal only after outcome is locked
     ROUND_END = "ROUND_END"
-
-
-class Role(StrEnum):
-    CIVILIAN = "CIVILIAN"
-    SPY = "SPY"
 
 
 class RoundStatus(StrEnum):

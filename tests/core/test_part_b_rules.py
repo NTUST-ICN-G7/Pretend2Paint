@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import random
 from collections import Counter
+from dataclasses import asdict
 
 import pytest
 
+from pretend2paint.common.types import Role as SharedRole
 from pretend2paint.core.part_b import (
     Deal,
     Role,
@@ -27,6 +30,7 @@ from pretend2paint.core.part_b import (
     tally_votes,
     valid_vote_targets,
 )
+from pretend2paint.core.part_b.types import Role as LegacyRole
 
 PLAYERS = ("a", "b", "c", "d", "e")
 SPY = "a"
@@ -66,6 +70,27 @@ def test_deal_words_private_role_text() -> None:
     assert all(
         not hasattr(deal, "answer") and not hasattr(deal, "spy_id") for deal in deals.values()
     )
+
+
+def test_role_uses_shared_enum_at_both_public_import_paths() -> None:
+    assert Role is SharedRole
+    assert LegacyRole is SharedRole
+    assert {role.value for role in Role} == {"civilian", "spy"}
+
+
+def test_private_deals_use_lowercase_shared_roles_in_json() -> None:
+    deals = deal_words(PLAYERS, SPY, CARD)
+    assert deals[SPY].role is SharedRole.SPY
+    assert all(
+        deal.role is SharedRole.CIVILIAN for player, deal in deals.items() if player != SPY
+    )
+    for player, deal in deals.items():
+        payload = json.loads(json.dumps(asdict(deal)))
+        assert payload == {
+            "role": "spy" if player == SPY else "civilian",
+            "text": CARD.hint if player == SPY else CARD.answer,
+        }
+        assert SharedRole(payload["role"]) is deal.role
 
 
 def test_deal_rejects_spy_not_in_players() -> None:

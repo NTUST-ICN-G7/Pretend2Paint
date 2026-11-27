@@ -44,11 +44,11 @@ uv run pytest tests/core/test_part_b_*.py
 
 - Part A must authenticate senders, own timers/state, and call rule functions.
 - Part B does not transmit secrets or drawings. All private mappings and moderation records must stay on the authoritative process.
-- Phase/Role representations in this proposal are **not** yet synchronized with `pretend2paint.common.types`; the current team protocol/ADR remains authoritative until reviewed.
+- `Role` re-exports the existing `pretend2paint.common.types.Role` with lowercase values; the old Part B import paths remain valid. The candidate `Phase` is still separate pending approval of the shared phase contract. Current team protocol and ADRs remain authoritative.
 - Production integration may require a separate agreed PR for `common/`, `docs/game-rules.md`, `docs/protocol.md`, and team ADRs. No such cross-module changes are proposed here.
 
 ## 尚未完成 / Not done
 
-- [ ] Align host/referee model and phase/role enums with the approved team decisions.
+- [ ] Complete shared Phase alignment and reduction of unapproved candidate rules; the host/referee decision is recorded in ADR 0007 in this PR, and Role alignment is pending CI validation.
 - [ ] Agree on packet contracts with Streaming and state transitions with Core A.
 - [ ] Run full project CI against Python 3.14, uv-managed dependencies, and real multiplayer integration.
