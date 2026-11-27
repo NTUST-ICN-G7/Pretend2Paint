@@ -21,6 +21,7 @@ from .config import (
     DEFAULT_TCP_PORT,
     DISCOVERY_INTERVAL,
     HANDSHAKE_TIMEOUT,
+    MAX_WRITE_BUFFER,
     READ_CHUNK_SIZE,
 )
 from .discovery import Discovery
@@ -79,6 +80,7 @@ class ConnectionPool:
         discovery_port: UDP discovery 使用的 port。
         discovery_targets: announcement 送往的 `(host, port)`；預設為區網廣播。
         discovery_interval: 廣播間隔（秒）。
+        max_write_buffer: 每條連線尚未送出的資料上限（bytes），超過就斷開該連線。
     """
 
     def __init__(
@@ -92,8 +94,10 @@ class ConnectionPool:
         discovery_port: int = DEFAULT_DISCOVERY_PORT,
         discovery_targets: Sequence[tuple[str, int]] | None = None,
         discovery_interval: float = DISCOVERY_INTERVAL,
+        max_write_buffer: int = MAX_WRITE_BUFFER,
     ) -> None:
         self._peer_id: PlayerId = peer_id or uuid.uuid4().hex
+        self._max_write_buffer = max_write_buffer
         self._room = room
         self._host = host
         self._port = port
@@ -264,12 +268,52 @@ class ConnectionPool:
         for conn in list(self._conns.values()):
             self._write(conn, data)
 
+    async def drain(self, peer_id: PlayerId | None = None) -> None:
+        """等待寫入緩衝消化到低水位以下。
+
+        `send` / `broadcast` 只是把資料放進緩衝區就返回。連續送大量資料（例如畫作）時，
+        可以在送完後 `await pool.drain()`，避免緩衝區無限制成長。
+
+        Args:
+            peer_id: 只等這個 peer；`None` 表示等所有已連線的 peer。
+
+        Raises:
+            PeerNotConnectedError: 指定的 peer 沒有連線。
+
+        等待中連線斷掉不會丟例外（斷線會另外觸發 `peer_left`）。
+        """
+        if peer_id is None:
+            conns = list(self._conns.values())
+        else:
+            conn = self._conns.get(peer_id)
+            if conn is None:
+                raise PeerNotConnectedError(peer_id)
+            conns = [conn]
+        results = await asyncio.gather(
+            *(c.writer.drain() for c in conns if not c.writer.is_closing()),
+            return_exceptions=True,
+        )
+        for result in results:
+            # 連線中斷（OSError / ConnectionError）由 read loop 處理，這裡忽略
+            if isinstance(result, BaseException) and not isinstance(result, OSError):
+                raise result
+
     # ------------------------------------------------------------ internals
     def _write(self, conn: _Connection, data: bytes) -> None:
         if conn.writer.is_closing():
             logger.warning("drop %d bytes to %s: connection closing", len(data), conn.peer_id)
             return
         conn.writer.write(data)
+        pending = conn.writer.transport.get_write_buffer_size()
+        if pending > self._max_write_buffer:
+            # 對方太久沒讀（當機或卡住），斷線保護記憶體；read loop 會觸發 peer_left
+            logger.warning(
+                "peer %s write buffer %d > %d bytes, disconnecting",
+                conn.peer_id,
+                pending,
+                self._max_write_buffer,
+            )
+            conn.writer.transport.abort()
 
     def _on_discovered(self, ann: Announcement, host: str) -> None:
         # 只有 id 較小的一方主動連線，避免雙方同時連造成重複連線
