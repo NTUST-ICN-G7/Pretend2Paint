@@ -31,7 +31,24 @@ streaming 的程式只允許 `ROUND_STATE_SYNC` 與 `ROUND_RESULT` 廣播，其�
 | `0x06` | `SPY_REFERENCE` | 房主 → 間諜 | **單播，一次一人** | `{"image": str}`：間諜選中的參考圖，**不含作者** |
 | `0x07` | `VOTE` | 玩家 → 房主 | → 房主 | `{"target": PlayerId}` |
 | `0x08` | `SPY_GUESS` | 間諜 → 房主 | → 房主 | `{"guess": str}` |
-| `0x09` | `ROUND_RESULT` | 房主 → 所有人 | 廣播 | `{"spy": PlayerId, "answer": str, "scores": {PlayerId: int}}` |
+| `0x09` | `ROUND_RESULT` | 房主 → 所有人 | 廣播 | 回合結算，欄位見下方 |
+
+### `ROUND_RESULT` 結算資料
+
+| 欄位 | 型別 | 說明 |
+| :--- | :--- | :--- |
+| `outcome` | `str` | `escaped`（潛伏）、`caught`（被抓）、`tie`（間諜畫作並列最高票）、`void`（作廢） |
+| `spy` | `PlayerId` | 間諜的玩家 ID |
+| `answer` | `str` | 正確答案 |
+| `scores` | `dict[PlayerId, int]` | 房主計算的分數，沿用原格式 |
+| `hint` | `str` | 間諜收到的提示 |
+| `spy_guess` | `str \| null` | 間諜提交的答案，未提交時為 `null` |
+| `guess_correct` | `bool \| null` | Core 判定的結果，未進入猜題時為 `null`，逾時可為 `false` |
+| `drawings` | `list[object]` | 每項含 `drawing_index: int`（沿用公開時的編號）、`author_name: str`、`votes: int`，可附 `marked: bool` |
+| `violations` | `list[object]` | 每項含 `player_id: PlayerId`、`name: str`、`strikes: int`（累計記點）、`penalty: int`。沒有違規時為空陣列 |
+| `removed_players` | `list[PlayerId]` | 本回合被移出的玩家 ID，沒有時為空陣列 |
+
+一般結算包含表中所有欄位。作廢時只送 `outcome`、`scores`、`violations`、`removed_players`。接收端也接受原有的 `spy`、`answer`、`scores` 三欄格式。
 
 ### 接收端會丟棄的封包
 
@@ -44,9 +61,9 @@ streaming 的程式只允許 `ROUND_STATE_SYNC` 與 `ROUND_RESULT` 廣播，其�
 
 ## 機密規則（[ADR 0005](decisions/0005-secret-information.md)）
 
-- **答案、提示、間諜身分**：只能單播，任何時候都不能廣播。`DEAL_WORD` 的 payload 不可帶有「誰是間諜」的欄位。
+- **結算前的答案、提示、間諜身分**：只單播給需要的玩家。`DEAL_WORD` 的 payload 不可帶有「誰是間諜」的欄位。
 - **畫作**：`Phase.REVEAL` 之前只能送給房主，不能讓間諜收到其他人的畫作。`SPY_REFERENCE` 不可帶作者。
-- 答案只有在 `ROUND_RESULT` 才公開。
+- 房主在一般回合結算時才透過 `ROUND_RESULT` 公開答案、提示、間諜身分與畫作作者。作廢結算只公開違規、出局與分數資訊。
 - streaming 在程式裡強制：`DEAL_WORD` / `SPY_REFERENCE` 一次只能送一個對象；除了 `ROUND_STATE_SYNC`、`ROUND_RESULT` 之外的封包無法廣播。「誰可以收」仍由 core 決定。
 
 ## 錯誤處理

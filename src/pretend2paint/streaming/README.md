@@ -94,7 +94,9 @@ manager.send_vote([host_id], "peer_003")
 | 方法 | 說明 |
 | :--- | :--- |
 | `broadcast_round_state(state: Phase \| str)` | 房主 → 所有人：同步回合階段。`state` 不是合法的 `Phase` 時丟 `ValueError` |
-| `broadcast_round_result(spy: PlayerId, answer: str, scores: dict[PlayerId, int])` | 房主 → 所有人：公布間諜、答案、得分 |
+| `broadcast_round_result(spy, answer, scores, *, outcome=None, hint=None, spy_guess=None, guess_correct=None, drawings=None, violations=None, removed_players=None)` | 房主 → 所有人：在回合結算時公布結果 |
+
+Core 傳入 `outcome`（`escaped`、`caught`、`tie`、`void`）。一般結算還需傳入 `hint` 和 `drawings`，猜題欄位可為 `None`。作廢時傳入 `spy=None`、`answer=None` 及分數、違規和出局資訊。未提供 `violations` 或 `removed_players` 時會送空陣列。既有的三參數呼叫仍會送出原格式。欄位形狀與限制請見 [通訊協定](../../../docs/protocol.md)。
 
 ### `PacketType`
 封包類型（`IntEnum`，log 與除錯時看得到名稱）（`DRAW_STROKE`、`SPY_SELECT_REF`、`ROUND_STATE_SYNC`、`CANVAS_SNAPSHOT`、`DEAL_WORD`、`SPY_REFERENCE`、`VOTE`、`SPY_GUESS`、`ROUND_RESULT`），給 `register_handler` 使用。數值與 payload 欄位見 `docs/protocol.md`。
