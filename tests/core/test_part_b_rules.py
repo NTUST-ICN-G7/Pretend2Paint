@@ -81,9 +81,7 @@ def test_role_uses_shared_enum_at_both_public_import_paths() -> None:
 def test_private_deals_use_lowercase_shared_roles_in_json() -> None:
     deals = deal_words(PLAYERS, SPY, CARD)
     assert deals[SPY].role is SharedRole.SPY
-    assert all(
-        deal.role is SharedRole.CIVILIAN for player, deal in deals.items() if player != SPY
-    )
+    assert all(deal.role is SharedRole.CIVILIAN for player, deal in deals.items() if player != SPY)
     for player, deal in deals.items():
         payload = json.loads(json.dumps(asdict(deal)))
         assert payload == {
