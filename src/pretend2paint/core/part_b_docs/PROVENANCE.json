@@ -1,0 +1,20 @@
+{
+  "project": "Undercover Drawing — Part B Rules API",
+  "version": "1.2.0",
+  "date": "2026-11-22",
+  "source_basis": {
+    "team_api_draft": {
+      "name": "README.pdf",
+      "sha256": "d43dc29eaaf00821296cccc9f653776646fbece3f44912d4fccbc284e514c8e3"
+    },
+    "project_brief": {
+      "name": "Chapter_0_v8.0-00-M365-ICN-2026F.pdf",
+      "sha256": "2f062d662f5f158f8e056e644e0543b14874c5e070a923fe66079daa06462331"
+    },
+    "parent_release": {
+      "name": "WhoIsUndercoverDrawing_PartB_v1.1.0_Source.zip",
+      "sha256": "30914afcc0365034e08354eef0eb90a4587189a2e9e3127dc7dccbb2c017e51a"
+    }
+  },
+  "note": "This is a NEW modified release, not byte-identical to the v1.1.0 parent."
+}

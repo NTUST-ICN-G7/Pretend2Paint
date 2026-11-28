@@ -10,7 +10,8 @@
 | :--- | :--- | :--- |
 | [0001](0001-toolchain.md) | 開發工具鏈：Python 3.14 + uv | 通過 |
 | [0002](0002-layered-architecture.md) | 分層架構 | 通過 |
-| [0003](0003-host-authority.md) | 由房主作為權威節點 | 通過 |
+| [0003](0003-host-authority.md) | 由房主作為權威節點 | 已被 0007 取代 |
 | [0004](0004-threading-model.md) | 執行緒模型 | 通過 |
 | [0005](0005-secret-information.md) | 機密資訊只能單播 | 通過 |
 | [0006](0006-ui-framework.md) | UI 框架：tkinter | 通過 |
+| [0007](0007-in-process-referee.md) | 房主程式內的自動裁判 | 架構決議已核准（PR 待合併） |
